@@ -1,0 +1,2173 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f1116">
+<title>Расчёт электрических цепей</title>
+<style>
+  :root{
+    --bg:#0f1116; --panel:#171a21; --panel2:#1e222b; --border:#2b303b;
+    --text:#e6e9ef; --muted:#8b93a3; --accent:#6ea8fe; --accent2:#b98cff;
+    --good:#63d68a; --bad:#f0736a; --warn:#e6b450; --grid:#1c202a;
+    --wire:#9aa4b6; --comp-stroke:#c8d0de; --comp-fill:#202634; --canvas:#0b0d12; --gridline:#1c202a; --cur:#63d68a;
+  }
+  body.light{
+    --bg:#eef1f7; --panel:#ffffff; --panel2:#f4f6fb; --border:#d5dae6;
+    --text:#1b2230; --muted:#5c6678; --accent:#2f6fe0; --accent2:#7a3fd0;
+    --good:#1f9d55; --bad:#d64545; --warn:#b07d12; --grid:#e2e6f0;
+    --wire:#7a8699; --comp-stroke:#4a5568; --comp-fill:#ffffff; --canvas:#ffffff; --gridline:#e6eaf2; --cur:#1f9d55;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:Segoe UI,Roboto,Arial,sans-serif;font-size:14px;line-height:1.45;-webkit-text-size-adjust:100%}
+  header{padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{margin:0;font-size:17px;font-weight:600}
+  header .sub{color:var(--muted);font-size:12px;margin-top:2px}
+  header .hint{color:var(--muted);font-size:12px;max-width:520px}
+  nav{display:flex;gap:8px;padding:10px 14px 10px;margin:0;flex-wrap:wrap}
+  nav button{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:11px;cursor:pointer;font-size:14px}
+  nav button.active{background:var(--panel2);border-color:var(--accent);color:var(--accent);font-weight:600}
+  .wrap{margin:0;padding:0 10px 28px}
+  .tab{display:none}
+  .tab.active{display:block}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px}
+  .card h2{margin:0 0 10px;font-size:14px;color:var(--accent)}
+  .card h3{margin:16px 0 6px;font-size:13px;color:var(--muted)}
+  .schemaGrid{display:grid;grid-template-columns:200px 1fr;gap:10px;align-items:start}
+  .cols{display:flex;gap:6px}
+  .cols input{width:100%;padding:6px 7px;background:var(--panel2);border:1px solid var(--border);border-radius:7px;color:var(--text)}
+  .qbtn{display:flex;gap:6px;flex-wrap:wrap}
+  .qbtn button{flex:1 1 44%;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px;cursor:pointer;font-size:12px}
+  .qbtn button.active{background:var(--accent);color:#0b0d12;border-color:var(--accent);font-weight:700}
+  .calcGrid{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:12px;align-items:start}
+  @media(max-width:900px){.schemaGrid,.calcGrid{grid-template-columns:1fr}}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+  input[type=text],input[type=number],select{width:100%;padding:7px 9px;background:var(--panel2);border:1px solid var(--border);border-radius:7px;color:var(--text);outline:none;font-size:14px}
+  input:focus,select:focus{border-color:var(--accent)}
+  .btn{background:var(--accent);color:#0b0d12;border:none;border-radius:7px;padding:8px 13px;cursor:pointer;font-weight:600;font-size:13px}
+  .btn:hover{filter:brightness(1.1)}
+  .btn.sec{background:var(--panel2);color:var(--text);border:1px solid var(--border);font-weight:500}
+  .btn.small{padding:5px 9px;font-size:12px}
+  .btn.wide{width:100%;margin-top:10px;padding:11px}
+  .btn.danger{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+  .tools{display:flex;flex-wrap:wrap;gap:6px}
+  .tools button{flex:1 1 auto;min-width:96px;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 8px;cursor:pointer;font-size:13px}
+  .tools button.active{background:var(--accent);color:#0b0d12;border-color:var(--accent);font-weight:700}
+  .svgbox{background:var(--canvas);border:1px solid var(--border);border-radius:10px;overflow:auto;max-height:75vh;-webkit-overflow-scrolling:touch}
+  svg#cv{display:block;touch-action:none;user-select:none}
+  .el{cursor:move}
+  .lead{stroke:var(--wire);stroke-width:2}
+  .resbody{fill:var(--comp-fill);stroke:var(--comp-stroke);stroke-width:2}
+  .srccircle{fill:var(--comp-fill);stroke:var(--comp-stroke);stroke-width:2}
+  .srcarrow{stroke:var(--comp-stroke);stroke-width:2}
+  .arrsrc{fill:var(--comp-stroke)}
+  .arrcur{fill:var(--cur)}
+  .nodecircle{fill:var(--accent);stroke:var(--canvas);stroke-width:1.5}
+  .el.sel .resbody,.el.sel .srccircle{stroke:var(--accent);stroke-width:3}
+  .el.sel .nodecircle{stroke:var(--accent2);stroke-width:2.5}
+  .el.foldhl .resbody,.el.foldhl .srccircle{stroke:var(--good);stroke-width:3.5}
+  .el.folded{opacity:.16}
+  .el.repgreen .resbody{stroke:var(--good);stroke-width:3;fill:var(--comp-fill)}
+  .el.repgreen .lead{stroke:var(--good)}
+  .el.repgreen .inval{fill:var(--good)}
+  .el.repgreen .lbl{fill:var(--good)}
+  .lbl{fill:var(--text);font-size:13px;font-weight:700;pointer-events:none}
+  .val{fill:var(--muted);font-size:12px;pointer-events:none}
+  .inval{fill:var(--text);font-size:12px;font-weight:600;pointer-events:none}
+  .nodelbl{fill:var(--accent2);font-size:14px;font-weight:700;pointer-events:none}
+  .gridline{stroke:var(--gridline)}
+  .wire{stroke:var(--wire);stroke-width:2;pointer-events:none}
+  .wire.sel{stroke:var(--bad);stroke-width:3}
+  .wirehit{stroke:transparent;stroke-width:18;fill:none;pointer-events:stroke;cursor:move}
+  .foldmap{display:block;width:100%;max-width:760px;height:auto;background:var(--canvas);border-radius:8px;margin:8px 0}
+  .tagbg{fill:var(--canvas);opacity:.82}
+  .foldbadge{fill:var(--panel);stroke:var(--good);stroke-width:1.5}
+  .foldbadgetx{fill:var(--good);font-size:13px;font-weight:700}
+  .stagebadge{fill:var(--panel);stroke:var(--accent);stroke-width:1.5}
+  .stagebadgetx{fill:var(--accent);font-size:13px;font-weight:700}
+  .pin{fill:transparent;stroke:none;pointer-events:none}
+  .pin.active{fill:rgba(110,168,254,.25);stroke:#6ea8fe;stroke-width:1.5;pointer-events:none}
+  .pin.pending{fill:#e6b450;stroke:#e6b450;pointer-events:none}
+  .pinhit{fill:transparent;stroke:none;pointer-events:all;cursor:crosshair}
+  .polar{fill:var(--text);font-size:15px;font-weight:700;pointer-events:none}
+  .cur{stroke:var(--cur);stroke-width:2.5}
+  .curhead{fill:var(--cur)}
+  .curtxt{fill:var(--cur);font-size:12px;font-weight:700;pointer-events:none}
+  .muted{color:var(--muted)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .field{margin-bottom:4px}
+  .prop-box{border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--panel2);margin-top:8px}
+  .dirbtns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .dirbtns button{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px;cursor:pointer}
+  .dirbtns button.active{background:var(--accent);color:#0b0d12;border-color:var(--accent);font-weight:700}
+  .res h3{margin:18px 0 8px;font-size:14px;color:var(--accent2);border-bottom:1px solid var(--border);padding-bottom:5px}
+  .res h3:first-child{margin-top:0}
+  .formula{font-family:Consolas,Menlo,monospace;font-size:13px;margin:4px 0;white-space:normal;overflow-wrap:anywhere}
+  .sys{display:inline-block;border-left:2px solid var(--accent);padding-left:10px;margin:6px 0}
+  .subtract{display:inline-grid;grid-template-columns:20px auto;margin:6px 0}
+  .sminus{grid-column:1;grid-row:1 / span 2;display:flex;align-items:center;font-family:Consolas,Menlo,monospace;font-size:13px;color:var(--text)}
+  .seq{grid-column:2;font-family:Consolas,Menlo,monospace;font-size:13px;white-space:nowrap;padding:1px 0}
+  .sbar{grid-column:1 / -1;border-top:1.5px solid var(--text);margin:3px 0}
+  .sres{grid-column:2;font-family:Consolas,Menlo,monospace;font-size:13px;padding-top:1px}
+  .step{font-size:13px;color:var(--muted);margin:14px 0 2px}
+  .step .n{color:var(--accent2);font-weight:700;margin-right:6px}
+  table{border-collapse:collapse;width:100%;margin:6px 0;font-size:13px}
+  th,td{border:1px solid var(--border);padding:6px 8px;text-align:left}
+  th{background:var(--panel2);color:var(--muted);font-weight:600}
+  td.num{font-family:Consolas,Menlo,monospace}
+  .ok{color:var(--good);font-weight:700}
+  .no{color:var(--bad);font-weight:700}
+  .errbox{background:#2a1616;border:1px solid var(--bad);color:#ffd7d3;border-radius:8px;padding:10px 12px}
+  .legend{font-size:12px;color:var(--muted);margin-top:8px}
+  .collapse{display:block;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--border);color:var(--accent);border-radius:8px;padding:7px 10px;margin:4px 0 8px;cursor:pointer;font-weight:600;font-size:13px}
+  .elembox{border:1px solid var(--border);border-radius:9px;padding:9px 11px;margin:8px 0;background:var(--panel2)}
+  .elemtitle{font-weight:700;color:var(--accent2);margin-bottom:4px;font-size:13px}
+  .chk{display:flex;gap:7px;align-items:center;font-size:13px;color:var(--text);margin:3px 0;cursor:pointer}
+  .chk input{width:auto;margin:0}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#2b303b;color:#fff;padding:9px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;font-size:13px}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Расчёт электрических цепей</h1>
+    <div class="sub">Источник ЭДС + резисторы + узлы. Полный ход решения с формулами и единицами.</div>
+  </div>
+  <div class="row">
+    <div class="hint" id="hint">Режим: выбор/перемещение. Выберите инструмент слева.</div>
+    <button class="btn sec small" id="themeBtn">Светлая тема</button>
+  </div>
+</header>
+
+<nav>
+  <button id="tabbtn-schema" class="active" data-tab="schema">Схема</button>
+  <button id="tabbtn-calc" data-tab="calc">Данные и расчёт</button>
+</nav>
+
+<div class="wrap">
+  <section id="tab-schema" class="tab active">
+    <div class="schemaGrid">
+      <div class="card">
+        <h2>Инструменты</h2>
+        <div class="tools" id="tools">
+          <button data-tool="select">↖ Выбор</button>
+          <button data-tool="wire">— Провод</button>
+          <button data-tool="resistor">▭ Резистор</button>
+          <button data-tool="source">◯ Источник</button>
+          <button data-tool="node">• Узел</button>
+        </div>
+        <h3>Ещё</h3>
+        <div class="tools">
+          <button id="btn-zoom-out">− Масштаб</button>
+          <button id="btn-zoom-in">+ Масштаб</button>
+          <button id="btn-del">Удалить</button>
+          <button id="btn-clear">Очистить</button>
+        </div>
+        <h3>Форма нового провода</h3>
+        <div class="qbtn" id="wiremode">
+          <button data-wm="ortho" class="active">Углы 90°</button>
+          <button data-wm="direct">Любой угол</button>
+        </div>
+        <h3>Размер поля (клеток)</h3>
+        <div class="cols">
+          <input type="number" id="in-cols" min="20" max="400" step="5" value="70">
+          <span style="align-self:center">×</span>
+          <input type="number" id="in-rows" min="20" max="400" step="5" value="50">
+        </div>
+        <div class="legend">
+          Провода: инструмент «Провод», нажмите конец элемента, затем второй конец.<br>
+          Провод тянется за любой участок; форму (90° или любой угол) можно задать в его свойствах.<br>
+          Встроить резистор: выберите инструмент «Резистор» и нажмите по проводу.<br>
+          Резистор поворачивается на 0°/45°/90°/135°. Источник: направление + задаёт полярность.
+        </div>
+      </div>
+      <div>
+        <div class="svgbox"><svg id="cv" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        <div id="props"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-calc" class="tab">
+    <div class="calcGrid">
+      <div class="card">
+        <h2>Исходные данные</h2>
+        <button type="button" class="collapse" id="dataToggle">▾ Свернуть параметры элементов</button>
+        <div id="dataBody">
+        <div id="dataFields"></div>
+        <div class="field"><label>Сила тока (необязательно), А</label><input type="text" id="in-I" inputmode="decimal" placeholder="например 1.71"></div>
+        <div class="field"><label>Шаг округления (0.1; 0.01; …)</label>
+          <select id="in-step">
+            <option value="1">1</option>
+            <option value="0.1">0.1</option>
+            <option value="0.01" selected>0.01</option>
+            <option value="0.001">0.001</option>
+            <option value="0.0001">0.0001</option>
+          </select>
+        </div>
+        </div>
+        <label style="margin-top:10px">Что вычислять</label>
+        <label class="chk"><input type="checkbox" id="chk-balance" checked> Баланс мощностей</label>
+        <label class="chk"><input type="checkbox" id="chk-mun"> МУН (метод двух узлов)</label>
+        <label class="chk"><input type="checkbox" id="chk-mn"> МН (метод наложения)</label>
+        <label class="chk"><input type="checkbox" id="chk-muku"> МУКУ (уравнения Кирхгофа)</label>
+        <button class="btn wide" id="btn-calc">Рассчитать</button>
+        <button class="btn sec wide" id="btn-calc-reset">Сбросить расчёт</button>
+        <div class="legend">Правило округления: если отбрасывается ровно 5, она сохраняется. Пример: при шаге 0.01 число 0.025 остаётся 0.025.</div>
+      </div>
+      <div class="card res" id="results">
+        <p class="muted">Нажмите «Рассчитать».</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const W=1400,H=1000,GRID=20;
+const GEO={lead:40,bodyHalf:26,bodyW:26,srcR:26,srcLead:44,nodeR:7};
+const S={elements:[],wires:[],nextId:1,selected:null,pending:null,tool:"select",zoom:1,showCurrents:true,results:null,error:null,precision:0.01,givenI:"",wireMode:"ortho",cols:70,rows:50,
+  methods:{balance:true,mun:false,mn:false,muku:false}};
+let drag=null,dragPointer=null;
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function snap(v){return Math.round(v/GRID)*GRID;}
+function zeros(n){const a=[];for(let i=0;i<n;i++){const r=[];for(let j=0;j<n;j++)r.push(0);a.push(r);}return a;}
+function decimalsOf(step){if(!(step>0))return null;const s=String(step);if(s.indexOf("e")>=0||s.indexOf("E")>=0)return Math.max(0,-Math.floor(Math.log10(step)));const i=s.indexOf(".");return i<0?0:(s.length-i-1);}
+function autoDec(v){const a=Math.abs(v);if(a===0)return 2;if(a>=1000)return 1;if(a>=100)return 2;if(a>=10)return 3;if(a>=1)return 4;if(a>=0.1)return 5;return 7;}
+function roundSmart(value,step){
+  if(value===null||value===undefined||isNaN(value)||!isFinite(value))return{v:value,dec:null};
+  if(!(step>0))return{v:value,dec:autoDec(value)};
+  const dec=decimalsOf(step);
+  const scaled=value/step;
+  const fl=Math.floor(scaled);
+  const frac=scaled-fl;
+  const tol=1e-9*Math.max(1,Math.abs(scaled));
+  if(Math.abs(frac-0.5)<tol)return{v:value,dec:dec+1};
+  return{v:Math.round(scaled)*step,dec:dec};
+}
+function fmtNum(value,step){
+  if(value===null||value===undefined||isNaN(value))return "—";
+  if(!isFinite(value))return value>0?"∞":"−∞";
+  const r=roundSmart(value,step);
+  let d=(r.dec===null||r.dec===undefined)?autoDec(r.v):r.dec;
+  if(d>9)d=9;
+  let s=r.v.toFixed(d);
+  if(s.indexOf(".")>=0)s=s.replace(/0+$/,"").replace(/\.$/,"");
+  if(s==="-0"||s==="-0.0")s="0";
+  return s;
+}
+function fm(v){return fmtNum(v,S.precision);}
+function num(v){const x=parseFloat(String(v).replace(",","."));return isNaN(x)?null:x;}
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+
+function solveLinear(A,b){
+  const n=b.length;
+  if(n===0)return [];
+  const M=A.map((row,i)=>row.concat([b[i]]));
+  for(let col=0;col<n;col++){
+    let piv=col;
+    for(let r=col+1;r<n;r++)if(Math.abs(M[r][col])>Math.abs(M[piv][col]))piv=r;
+    if(Math.abs(M[piv][col])<1e-12)throw new Error("Система уравнений не имеет решения (проверьте схему: возможен обрыв или короткое замыкание).");
+    const tmp=M[col];M[col]=M[piv];M[piv]=tmp;
+    const d=M[col][col];
+    for(let c=col;c<=n;c++)M[col][c]/=d;
+    for(let r=0;r<n;r++){
+      if(r===col)continue;
+      const f=M[r][col];
+      if(f===0)continue;
+      for(let c=col;c<=n;c++)M[r][c]-=f*M[col][c];
+    }
+  }
+  return M.map(row=>row[n]);
+}
+
+function terminalsOf(el){
+  if(el.type==="resistor"){
+    const a=(el.angle||0)*Math.PI/180,ux=Math.cos(a),uy=Math.sin(a);
+    return[{x:el.x-ux*GEO.lead,y:el.y-uy*GEO.lead},{x:el.x+ux*GEO.lead,y:el.y+uy*GEO.lead}];
+  }
+  if(el.type==="source"){
+    const L=GEO.srcLead,d=el.dir||"right";
+    if(d==="right")return[{x:el.x-L,y:el.y},{x:el.x+L,y:el.y}];
+    if(d==="left")return[{x:el.x+L,y:el.y},{x:el.x-L,y:el.y}];
+    if(d==="up")return[{x:el.x,y:el.y+L},{x:el.x,y:el.y-L}];
+    return[{x:el.x,y:el.y-L},{x:el.x,y:el.y+L}];
+  }
+  if(el.type==="node")return[{x:el.x,y:el.y}];
+  return[];
+}
+function getEl(id){for(const e of S.elements)if(e.id===Number(id))return e;return null;}
+function pinXY(key){const parts=String(key).split(":");const el=getEl(parts[0]);if(!el)return null;const t=terminalsOf(el);return t[Number(parts[1])]||t[0];}
+function nextLabel(prefix){
+  let max=0;
+  for(const el of S.elements){
+    const l=el.label||"";
+    const m=l.match(new RegExp("^"+prefix+"(\\d+)$"));
+    if(m)max=Math.max(max,parseInt(m[1],10));
+  }
+  return prefix+(max+1);
+}
+function nextNodeName(){
+  const used={};
+  for(const el of S.elements)if(el.type==="node"&&el.name)used[el.name]=1;
+  for(let i=0;i<26;i++){const c=String.fromCharCode(97+i);if(!used[c])return c;}
+  return "n"+S.elements.length;
+}
+function firstSource(){for(const e of S.elements)if(e.type==="source")return e;return null;}
+function freeNumFor(type){
+  const used={};
+  for(const e of S.elements){if(e.type!==type)continue;const n=parseInt(String(e.label||"").replace(/[^0-9]/g,""),10);if(!isNaN(n))used[n]=1;}
+  let i=1;while(used[i])i++;return i;
+}
+function elemPrefix(type){return type==="source"?"E":"R";}
+function renameElement(el,newLabel){
+  if(el.label===newLabel)return;
+  el.label=newLabel;el.manual=true;
+  const n=parseInt(String(newLabel).replace(/[^0-9]/g,""),10);
+  if(isNaN(n))return;
+  const pfx=elemPrefix(el.type);
+  S.elements.forEach(o=>{
+    if(o===el||o.type!==el.type)return;
+    const on=parseInt(String(o.label||"").replace(/[^0-9]/g,""),10);
+    if(on===n&&!o.manual)o.label=pfx+freeNumFor(el.type);
+  });
+}
+function renderDataFields(){
+  const box=$("dataFields");if(!box)return;
+  const srcs=S.elements.filter(e=>e.type==="source");
+  const rs=S.elements.filter(e=>e.type==="resistor");
+  if(!srcs.length&&!rs.length){box.innerHTML='<div class="muted">На схеме пока нет элементов.</div>';return;}
+  let h="";
+  srcs.forEach(el=>{
+    h+='<div class="elembox"><div class="elemtitle">Источник '+esc(el.label)+'</div>';
+    h+='<div class="field"><label>Название</label><input type="text" data-elid="'+el.id+'" data-dprop="label" value="'+esc(el.label)+'"></div>';
+    h+='<div class="field"><label>ЭДС E, В</label><input type="text" inputmode="decimal" data-elid="'+el.id+'" data-dprop="E" value="'+esc(el.E)+'"></div>';
+    h+='<div class="field"><label>Внутреннее R0, Ом</label><input type="text" inputmode="decimal" data-elid="'+el.id+'" data-dprop="R0" value="'+esc(el.R0)+'"></div>';
+    h+='</div>';
+  });
+  rs.forEach(el=>{
+    h+='<div class="elembox"><div class="elemtitle">Резистор '+esc(el.label)+'</div>';
+    h+='<div class="field"><label>Сопротивление R, Ом</label><input type="text" inputmode="decimal" data-elid="'+el.id+'" data-dprop="R" value="'+esc(el.R)+'"></div>';
+    h+='</div>';
+  });
+  box.innerHTML=h;
+}
+function syncDataLabels(){
+  S.elements.forEach(el=>{
+    const inp=document.querySelector('[data-elid="'+el.id+'"][data-dprop="label"]');
+    if(inp&&document.activeElement!==inp)inp.value=el.label;
+  });
+}
+
+function addResistor(x,y){const el={id:S.nextId++,type:"resistor",x:snap(x),y:snap(y),angle:0,label:nextLabel("R"),R:1};S.elements.push(el);return el;}
+function addSource(x,y){const el={id:S.nextId++,type:"source",x:snap(x),y:snap(y),dir:"right",label:nextLabel("E"),E:12,R0:1};S.elements.push(el);return el;}
+function addNode(x,y){const el={id:S.nextId++,type:"node",x:snap(x),y:snap(y),name:nextNodeName()};S.elements.push(el);return el;}
+
+function toSvg(evt){
+  const svg=$("cv");
+  const pt=svg.createSVGPoint();
+  pt.x=evt.clientX;pt.y=evt.clientY;
+  const m=svg.getScreenCTM();
+  if(!m)return{x:0,y:0};
+  const r=pt.matrixTransform(m.inverse());
+  return{x:r.x,y:r.y};
+}
+
+function autoRoute(p1,p2){
+  const dx=p2.x-p1.x,dy=p2.y-p1.y;
+  if(Math.abs(dx)<1e-6||Math.abs(dy)<1e-6)return[];
+  if(Math.abs(dx)>Math.abs(dy))return[{x:p2.x,y:p1.y}];
+  return[{x:p1.x,y:p2.y}];
+}
+function routePoints(w){
+  const p1=pinXY(w.p1),p2=pinXY(w.p2);
+  if(!p1||!p2)return null;
+  if(w.direct)return[{x:p1.x,y:p1.y},{x:p2.x,y:p2.y}];
+  const vias=(w.vias&&w.vias.length)?w.vias.map(v=>({x:v.x,y:v.y})):autoRoute(p1,p2);
+  return[{x:p1.x,y:p1.y}].concat(vias,[{x:p2.x,y:p2.y}]);
+}
+function wireSVG(w){
+  const pts=routePoints(w);
+  if(!pts)return"";
+  let d="M"+pts[0].x+" "+pts[0].y;
+  for(let i=1;i<pts.length;i++)d+=" L"+pts[i].x+" "+pts[i].y;
+  const sel=S.selected==="w"+w.id;
+  let s='<path class="wire'+(sel?" sel":"")+'" d="'+d+'" fill="none"/>';
+  s+='<path class="wirehit" data-wire="'+w.id+'" d="'+d+'" fill="none"/>';
+  return s;
+}
+function wireStageSVG(w){
+  const pts=routePoints(w);
+  if(!pts)return"";
+  let d="M"+pts[0].x+" "+pts[0].y;
+  for(let i=1;i<pts.length;i++)d+=" L"+pts[i].x+" "+pts[i].y;
+  return '<path class="wire" d="'+d+'" fill="none"/>';
+}
+function segDist(p,a,b){
+  const vx=b.x-a.x,vy=b.y-a.y,wx=p.x-a.x,wy=p.y-a.y;
+  const L2=vx*vx+vy*vy;
+  let t=L2>0?(wx*vx+wy*vy)/L2:0;
+  t=Math.max(0,Math.min(1,t));
+  const dx=p.x-(a.x+t*vx),dy=p.y-(a.y+t*vy);
+  return Math.sqrt(dx*dx+dy*dy);
+}
+function shiftSegment(pts,k,dx,dy){
+  const out=pts.map(q=>({x:q.x,y:q.y}));
+  const n=out.length;
+  const aFixed=(k===0),bFixed=(k+1===n-1);
+  if(!aFixed){out[k].x+=dx;out[k].y+=dy;}
+  if(!bFixed){out[k+1].x+=dx;out[k+1].y+=dy;}
+  if(aFixed)out.splice(1,0,{x:pts[0].x+dx,y:pts[0].y+dy});
+  if(bFixed){const li=out.length-1;out.splice(li,0,{x:out[li].x+dx,y:out[li].y+dy});}
+  return out;
+}
+
+function elementSVG(el,gcls){
+  let s='<g class="'+gcls+'" data-el="'+el.id+'">';
+  if(el.type==="resistor"){
+    const ang=el.angle||0,rad=ang*Math.PI/180;
+    const ux=Math.cos(rad),uy=Math.sin(rad);
+    const nx=-uy,ny=ux;
+    const bx=ux*GEO.bodyHalf,by=uy*GEO.bodyHalf;
+    s+='<line class="lead" x1="'+(el.x-ux*GEO.lead)+'" y1="'+(el.y-uy*GEO.lead)+'" x2="'+(el.x-bx)+'" y2="'+(el.y-by)+'"/>';
+    s+='<line class="lead" x1="'+(el.x+bx)+'" y1="'+(el.y+by)+'" x2="'+(el.x+ux*GEO.lead)+'" y2="'+(el.y+uy*GEO.lead)+'"/>';
+    s+='<g transform="translate('+el.x+','+el.y+') rotate('+ang+')">';
+    s+='<rect class="resbody" x="'+(-GEO.bodyHalf)+'" y="'+(-GEO.bodyW/2)+'" width="'+(2*GEO.bodyHalf)+'" height="'+GEO.bodyW+'" rx="3"/>';
+    s+='<text class="inval" x="0" y="4" text-anchor="middle">'+fm(el.R)+' Ом</text></g>';
+    s+='<text class="lbl" x="'+(el.x-nx*32)+'" y="'+(el.y-ny*32+4)+'" text-anchor="middle">'+esc(el.label)+'</text>';
+  }else if(el.type==="source"){
+    const t=terminalsOf(el),neg=t[0],pos=t[1];
+    const ux=(pos.x-neg.x),uy=(pos.y-neg.y);
+    const len=Math.sqrt(ux*ux+uy*uy)||1;
+    const nx=ux/len,ny=uy/len;
+    const cnx=el.x+nx*GEO.srcR,cny=el.y+ny*GEO.srcR;
+    const cpx=el.x-nx*GEO.srcR,cpy=el.y-ny*GEO.srcR;
+    s+='<line class="lead" x1="'+neg.x+'" y1="'+neg.y+'" x2="'+cnx+'" y2="'+cny+'"/>';
+    s+='<line class="lead" x1="'+pos.x+'" y1="'+pos.y+'" x2="'+cpx+'" y2="'+cpy+'"/>';
+    s+='<circle class="srccircle" cx="'+el.x+'" cy="'+el.y+'" r="'+GEO.srcR+'"/>';
+    s+='<text class="polar" x="'+(neg.x+nx*12)+'" y="'+(neg.y+ny*12)+'" text-anchor="middle" dominant-baseline="middle">−</text>';
+    s+='<text class="polar" x="'+(pos.x-nx*12)+'" y="'+(pos.y-ny*12)+'" text-anchor="middle" dominant-baseline="middle">+</text>';
+    const ax1=el.x-nx*13,ay1=el.y-ny*13,ax2=el.x+nx*13,ay2=el.y+ny*13;
+    s+='<line class="srcarrow" x1="'+ax1+'" y1="'+ay1+'" x2="'+ax2+'" y2="'+ay2+'"/>';
+    s+=arrowPoly(ax2,ay2,nx,ny,7,"arrsrc");
+    if(el.dir==="up"||el.dir==="down"){
+      const lx=el.x-GEO.srcR-10;
+      s+='<text class="lbl" x="'+lx+'" y="'+(el.y-8)+'" text-anchor="end">'+esc(el.label)+'</text>';
+      s+='<text class="val" x="'+lx+'" y="'+(el.y+8)+'" text-anchor="end">E='+fm(el.E)+' В</text>';
+      s+='<text class="val" x="'+lx+'" y="'+(el.y+23)+'" text-anchor="end">R0='+fm(el.R0)+' Ом</text>';
+    }else{
+      s+='<text class="lbl" x="'+el.x+'" y="'+(el.y-34)+'" text-anchor="middle">'+esc(el.label)+'</text>';
+      s+='<text class="val" x="'+el.x+'" y="'+(el.y+48)+'" text-anchor="middle">E='+fm(el.E)+' В, R0='+fm(el.R0)+' Ом</text>';
+    }
+  }else if(el.type==="node"){
+    s+='<circle class="nodecircle" cx="'+el.x+'" cy="'+el.y+'" r="'+GEO.nodeR+'"/>';
+    s+='<text class="nodelbl" x="'+(el.x+11)+'" y="'+(el.y-9)+'">'+esc(el.name)+'</text>';
+  }
+  s+='</g>';
+  return s;
+}
+function elSVG(el){return elementSVG(el,"el"+(S.selected==="e"+el.id?" sel":""));}
+
+function pinsSVG(el){
+  const ts=terminalsOf(el);let s="";
+  for(let i=0;i<ts.length;i++){
+    const key=el.id+":"+i;
+    const pending=S.pending===key;
+    const r=S.tool==="wire"?(pending?12:9):3.5;
+    const cls="pin"+(S.tool==="wire"?" active":"")+(pending?" pending":"");
+    s+='<circle class="'+cls+'" cx="'+ts[i].x+'" cy="'+ts[i].y+'" r="'+r+'"/>';
+  }
+  if(S.tool==="wire"){
+    for(let i=0;i<ts.length;i++){
+      s+='<circle class="pinhit" data-pin="'+el.id+':'+i+'" cx="'+ts[i].x+'" cy="'+ts[i].y+'" r="26"/>';
+    }
+  }
+  return s;
+}
+
+function arrowPoly(x,y,ux,uy,size,cls){
+  const px=-uy,py=ux;
+  const b1x=x-ux*size+px*size*0.7,b1y=y-uy*size+py*size*0.7;
+  const b2x=x-ux*size-px*size*0.7,b2y=y-uy*size-py*size*0.7;
+  return '<polygon class="'+cls+'" points="'+x+','+y+' '+b1x+','+b1y+' '+b2x+','+b2y+'"/>';
+}
+function currentArrow(cx,cy,ux,uy,label,len){
+  const L=len||40;
+  const x1=cx-ux*L/2,y1=cy-uy*L/2;
+  const x2=cx+ux*L/2,y2=cy+uy*L/2;
+  const hx=x2-ux*8,hy=y2-uy*8;
+  let s='<line class="cur" x1="'+x1+'" y1="'+y1+'" x2="'+hx+'" y2="'+hy+'"/>';
+  s+=arrowPoly(x2,y2,ux,uy,8,"arrcur");
+  if(label){
+    const px=-uy,py=ux;
+    s+='<text class="curtxt" x="'+(cx+px*13)+'" y="'+(cy+py*13+4)+'" text-anchor="middle">'+esc(label)+'</text>';
+  }
+  return s;
+}
+function curName(el){
+  const d=(el.label||"").replace(/[^0-9]/g,"");
+  return "I"+(d||"");
+}
+function r0Name(el){
+  const d=(el&&el.label||"").replace(/[^0-9]/g,"");
+  return d?("R0"+d):"R0";
+}
+const SUBD={"0":"\u2080","1":"\u2081","2":"\u2082","3":"\u2083","4":"\u2084","5":"\u2085","6":"\u2086","7":"\u2087","8":"\u2088","9":"\u2089"};
+function subDigits(t){return String(t).replace(/[0-9]/g,d=>SUBD[d]||d);}
+function splitName(name){
+  const m=String(name==null?"":name).match(/^([A-Za-zА-Яа-я]+)(.*)$/);
+  if(!m)return["",String(name==null?"":name)];
+  return[m[1],m[2]];
+}
+function svgSub(name){const p=splitName(name);return esc(p[0]+subDigits(p[1]));}
+function htmlSub(name){const p=splitName(name);return esc(p[0])+(p[1]?'<sub>'+esc(p[1])+'</sub>':'');}
+function curMark(cx,cy,ux,uy,off,len,label,flipDown){
+  let nx=-uy,ny=ux;
+  if(flipDown&&ny<0){nx=-nx;ny=-ny;}
+  const ax=cx+nx*off,ay=cy+ny*off;
+  let s=currentArrow(ax,ay,ux,uy,"",len);
+  const tx=ax+ux*(len/2+18),ty=ay+uy*(len/2+18)+4;
+  s+='<text class="curtxt" x="'+tx+'" y="'+ty+'" text-anchor="middle">'+svgSub(label)+'</text>';
+  return s;
+}
+function currentsSVG(){
+  if(!S.results||!S.showCurrents)return"";
+  let s="";
+  for(const r of S.results.resistors){
+    if(Math.abs(r.I)<1e-12)continue;
+    const el=r.el,t=terminalsOf(el),p0=t[0],p1=t[1];
+    let ux=p1.x-p0.x,uy=p1.y-p0.y;
+    const L=Math.sqrt(ux*ux+uy*uy)||1;ux/=L;uy/=L;
+    if(r.I<0){ux=-ux;uy=-uy;}
+    const cx=(p0.x+p1.x)/2,cy=(p0.y+p1.y)/2;
+    s+=curMark(cx,cy,ux,uy,30,54,curName(el),true);
+  }
+  for(const src of S.results.sources){
+    if(Math.abs(src.I)<1e-12)continue;
+    const el=src.el,t=terminalsOf(el),neg=t[0],pos=t[1];
+    let ux=pos.x-neg.x,uy=pos.y-neg.y;
+    const L=Math.sqrt(ux*ux+uy*uy)||1;ux/=L;uy/=L;
+    if(src.I<0){ux=-ux;uy=-uy;}
+    s+=curMark(el.x,el.y,ux,uy,42,52,curName(el),false);
+  }
+  return s;
+}
+
+function renderCanvas(){
+  const svg=$("cv");
+  const cw=(S.cols||70)*GRID,ch=(S.rows||50)*GRID;
+  svg.setAttribute("viewBox","0 0 "+cw+" "+ch);
+  svg.setAttribute("width",Math.round(cw*S.zoom));
+  svg.setAttribute("height",Math.round(ch*S.zoom));
+  let s='<defs><pattern id="grid" width="'+GRID+'" height="'+GRID+'" patternUnits="userSpaceOnUse"><path class="gridline" d="M '+GRID+' 0 L 0 0 0 '+GRID+'" fill="none" stroke-width="1"/></pattern></defs>';
+  s+='<rect x="0" y="0" width="'+cw+'" height="'+ch+'" fill="url(#grid)"/>';
+  for(const w of S.wires)s+=wireSVG(w);
+  for(const el of S.elements)s+=elSVG(el);
+  s+=currentsSVG();
+  for(const el of S.elements)s+=pinsSVG(el);
+  svg.innerHTML=s;
+}
+
+function propsHTML(){
+  const sel=S.selected;
+  if(!sel)return '<div class="card" style="margin-top:12px"><p class="muted">Ничего не выбрано. Нажмите на элемент, чтобы изменить его параметры.</p></div>';
+  if(sel.charAt(0)==="w"){
+    const w=S.wires.find(x=>x.id===Number(sel.slice(1)));
+    let h='<div class="card" style="margin-top:12px"><h2>Провод</h2>';
+    if(w){
+      h+='<label>Форма провода</label><div class="dirbtns">';
+      h+='<button data-wiremode="ortho" class="'+(!w.direct?"active":"")+'">Углы 90°</button>';
+      h+='<button data-wiremode="direct" class="'+(w.direct?"active":"")+'">Любой угол</button>';
+      h+='</div>';
+      h+='<p class="muted" style="font-size:12px">Провод можно тянуть за отдельный участок. «Любой угол» — прямая линия между контактами.</p>';
+    }
+    h+='<button class="btn sec small" id="prop-del" style="margin-top:8px">Удалить провод</button></div>';
+    return h;
+  }
+  const el=getEl(sel.slice(1));
+  if(!el)return"";
+  let h='<div class="card" style="margin-top:12px"><h2>Параметры элемента</h2>';
+  if(el.type==="resistor"){
+    h+='<div class="field"><label>Номер / название</label><input type="text" data-prop="label" value="'+esc(el.label)+'"></div>';
+    h+='<div class="field"><label>Сопротивление R, Ом</label><input type="text" data-prop="R" inputmode="decimal" value="'+esc(el.R)+'"></div>';
+    h+='<label>Поворот</label><div class="dirbtns">';
+    for(const ang of [0,45,90,135]){
+      h+='<button data-angle="'+ang+'" class="'+((el.angle||0)===ang?"active":"")+'">'+ang+'°</button>';
+    }
+    h+='</div>';
+  }else if(el.type==="source"){
+    h+='<div class="field"><label>Название</label><input type="text" data-prop="label" value="'+esc(el.label)+'"></div>';
+    h+='<div class="field"><label>ЭДС E, В</label><input type="text" data-prop="E" inputmode="decimal" value="'+esc(el.E)+'"></div>';
+    h+='<div class="field"><label>Внутреннее сопротивление R0, Ом</label><input type="text" data-prop="R0" inputmode="decimal" value="'+esc(el.R0)+'"></div>';
+    h+='<label>Направление (+ в какую сторону)</label><div class="dirbtns">';
+    h+='<button data-dir="left" class="'+(el.dir==="left"?"active":"")+'">← Влево</button>';
+    h+='<button data-dir="right" class="'+(el.dir==="right"?"active":"")+'">→ Вправо</button>';
+    h+='<button data-dir="up" class="'+(el.dir==="up"?"active":"")+'">↑ Вверх</button>';
+    h+='<button data-dir="down" class="'+(el.dir==="down"?"active":"")+'">↓ Вниз</button>';
+    h+='</div>';
+  }else if(el.type==="node"){
+    h+='<div class="field"><label>Имя узла</label><input type="text" data-prop="name" value="'+esc(el.name)+'"></div>';
+  }
+  h+='<div class="row" style="margin-top:10px"><button class="btn sec small" id="prop-del">Удалить элемент</button></div>';
+  h+='<button class="btn small" id="prop-close" style="margin-top:8px">Готово</button>';
+  h+='</div>';
+  return h;
+}
+function renderProps(){$("props").innerHTML=propsHTML();}
+
+function renderToolbar(){
+  for(const b of document.querySelectorAll("#tools button")){
+    if(b.dataset.tool===S.tool)b.classList.add("active");else b.classList.remove("active");
+  }
+  for(const b of document.querySelectorAll("#wiremode button")){
+    if(b.getAttribute("data-wm")===S.wireMode)b.classList.add("active");else b.classList.remove("active");
+  }
+  const ic=$("in-cols"),ir=$("in-rows");
+  if(ic&&document.activeElement!==ic)ic.value=S.cols;
+  if(ir&&document.activeElement!==ir)ir.value=S.rows;
+  const iI=$("in-I"),iS=$("in-step");
+  if(iI&&document.activeElement!==iI)iI.value=S.givenI;
+  if(iS&&document.activeElement!==iS)iS.value=String(S.precision);
+  const cb=(id,val)=>{const el=$(id);if(el&&document.activeElement!==el)el.checked=!!val;};
+  cb("chk-balance",S.methods.balance);cb("chk-mun",S.methods.mun);cb("chk-mn",S.methods.mn);cb("chk-muku",S.methods.muku);
+  renderDataFields();
+}
+
+function fullRender(){renderCanvas();renderProps();renderToolbar();}
+
+function setTool(t){S.tool=t;S.pending=null;renderToolbar();renderCanvas();}
+
+function delSelected(){
+  const sel=S.selected;
+  if(!sel){toast("Сначала выберите элемент или провод");return;}
+  if(sel.charAt(0)==="w"){
+    const id=Number(sel.slice(1));
+    S.wires=S.wires.filter(w=>w.id!==id);
+  }else{
+    const id=Number(sel.slice(1));
+    S.elements=S.elements.filter(e=>e.id!==id);
+    S.wires=S.wires.filter(w=>{
+      const a=String(w.p1).split(":")[0],b=String(w.p2).split(":")[0];
+      return Number(a)!==id&&Number(b)!==id;
+    });
+  }
+  S.selected=null;S.results=null;renderResults();fullRender();save();
+}
+
+function capPtr(e){
+  try{if(e&&e.pointerId!==undefined&&e.currentTarget&&e.currentTarget.setPointerCapture)e.currentTarget.setPointerCapture(e.pointerId);}catch(x){}
+}
+function startPan(e,deselect){
+  const box=document.querySelector(".svgbox");
+  drag={pan:true,startX:e.clientX,startY:e.clientY,sl:box?box.scrollLeft:0,st:box?box.scrollTop:0,moved:false,deselect:!!deselect};
+  dragPointer=e.pointerId;
+  capPtr(e);
+}
+function onDown(e){
+  if(e.pointerType==="mouse"&&e.button!==0)return;
+  if(drag){drag=null;dragPointer=null;}
+  const p=toSvg(e);
+  const pinEl=e.target.closest?e.target.closest("[data-pin]"):null;
+  const wireEl=e.target.closest?e.target.closest("[data-wire]"):null;
+  const elEl=e.target.closest?e.target.closest("[data-el]"):null;
+  if(S.tool==="wire"){
+    if(pinEl)handlePin(pinEl.getAttribute("data-pin"));
+    else startPan(e,false);
+    e.preventDefault();return;
+  }
+  if(S.tool==="resistor"){
+    if(wireEl&&embedResistor(wireEl,p)){e.preventDefault();return;}
+    placeAt(p.x,p.y);e.preventDefault();return;
+  }
+  if(S.tool==="source"||S.tool==="node"){
+    placeAt(p.x,p.y);e.preventDefault();return;
+  }
+  if(elEl){
+    const el=getEl(elEl.getAttribute("data-el"));
+    S.selected="e"+el.id;
+    drag={id:el.id,dx:p.x-el.x,dy:p.y-el.y};
+    renderProps();renderCanvas();
+  }else if(wireEl){
+    const id=Number(wireEl.getAttribute("data-wire"));
+    S.selected="w"+id;
+    const w=S.wires.find(x=>x.id===id);
+    if(w){
+      let pts=routePoints(w)||[];
+      if(w.direct){
+        w.direct=false;w.vias=[];
+        pts=routePoints(w);
+      }
+      if(pts.length>=2){
+        w.vias=pts.slice(1,-1).map(q=>({x:q.x,y:q.y}));
+        let best=0,bd=Infinity;
+        for(let i=0;i<pts.length-1;i++){const d=segDist(p,pts[i],pts[i+1]);if(d<bd){bd=d;best=i;}}
+        drag={wire:true,wireId:id,seg:best,orig:pts.map(q=>({x:q.x,y:q.y})),start:p,moved:false};
+      }
+    }
+    renderProps();renderCanvas();
+  }else{
+    startPan(e,true);
+  }
+  if(drag){dragPointer=e.pointerId;capPtr(e);}
+  e.preventDefault();
+}
+function onMove(e){
+  if(!drag)return;
+  if(dragPointer!==null&&e.pointerId!==undefined&&e.pointerId!==dragPointer)return;
+  if(drag.pan){
+    const box=document.querySelector(".svgbox");
+    if(box){box.scrollLeft=drag.sl-(e.clientX-drag.startX);box.scrollTop=drag.st-(e.clientY-drag.startY);}
+    drag.moved=true;
+    return;
+  }
+  const p=toSvg(e);
+  if(drag.wire){
+    const w=S.wires.find(x=>x.id===drag.wireId);
+    if(!w)return;
+    let dx=snap(p.x-drag.start.x),dy=snap(p.y-drag.start.y);
+    if(!w.direct){
+      const a=drag.orig[drag.seg],b=drag.orig[drag.seg+1];
+      if(Math.abs(a.x-b.x)<1e-6)dy=0;
+      else if(Math.abs(a.y-b.y)<1e-6)dx=0;
+    }
+    if(dx===0&&dy===0)return;
+    const out=shiftSegment(drag.orig,drag.seg,dx,dy);
+    w.vias=out.slice(1,-1);
+    drag.moved=true;
+    renderCanvas();
+    return;
+  }
+  const el=getEl(drag.id);
+  if(!el)return;
+  el.x=snap(p.x-drag.dx);el.y=snap(p.y-drag.dy);
+  renderCanvas();
+}
+function onUp(e){
+  if(!drag)return;
+  if(dragPointer!==null&&e&&e.pointerId!==undefined&&e.pointerId!==dragPointer)return;
+  if(drag.pan){
+    if(!drag.moved&&drag.deselect){S.selected=null;renderProps();renderCanvas();}
+  }else{
+    save();
+  }
+  drag=null;dragPointer=null;
+}
+
+function handlePin(key){
+  if(!S.pending){S.pending=key;renderCanvas();return;}
+  if(S.pending===key){S.pending=null;renderCanvas();return;}
+  const a=String(S.pending).split(":")[0],b=String(key).split(":")[0];
+  if(a===b){toast("Нельзя соединить два конца одного элемента");return;}
+  if(!S.wires.some(w=>(w.p1===S.pending&&w.p2===key)||(w.p1===key&&w.p2===S.pending))){
+    S.wires.push({id:S.nextId++,p1:S.pending,p2:key,direct:S.wireMode==="direct"});
+  }
+  S.pending=null;S.results=null;renderResults();renderCanvas();save();
+}
+function placeAt(x,y){
+  let el=null;
+  if(S.tool==="resistor")el=addResistor(x,y);
+  else if(S.tool==="source")el=addSource(x,y);
+  else if(S.tool==="node")el=addNode(x,y);
+  if(el){S.tool="select";S.selected="e"+el.id;S.results=null;S.error=null;renderResults();}
+  renderToolbar();fullRender();save();
+}
+function embedResistor(wireEl,p){
+  const id=Number(wireEl.getAttribute("data-wire"));
+  const w=S.wires.find(x=>x.id===id);
+  if(!w)return false;
+  const pts=routePoints(w);
+  if(!pts||pts.length<2)return false;
+  let best=0,bd=Infinity;
+  for(let i=0;i<pts.length-1;i++){const d=segDist(p,pts[i],pts[i+1]);if(d<bd){bd=d;best=i;}}
+  const A=pts[best],B=pts[best+1];
+  const vx=B.x-A.x,vy=B.y-A.y;
+  const len=Math.hypot(vx,vy)||1;
+  const ux=vx/len,uy=vy/len;
+  let t=((p.x-A.x)*vx+(p.y-A.y)*vy)/(len*len);
+  t=Math.max(0,Math.min(1,t));
+  if(len>2*GEO.lead+16)t=Math.max(GEO.lead/len,Math.min(1-GEO.lead/len,t));
+  else t=0.5;
+  const cx=A.x+ux*len*t,cy=A.y+uy*len*t;
+  const el=addResistor(cx,cy);
+  el.x=cx;el.y=cy;
+  el.angle=Math.atan2(vy,vx)*180/Math.PI;
+  const viasBefore=pts.slice(1,best+1).map(q=>({x:q.x,y:q.y}));
+  const viasAfter=pts.slice(best+1,pts.length-1).map(q=>({x:q.x,y:q.y}));
+  S.wires=S.wires.filter(x=>x.id!==id);
+  S.wires.push({id:S.nextId++,p1:w.p1,p2:el.id+":0",vias:viasBefore,direct:w.direct});
+  S.wires.push({id:S.nextId++,p1:el.id+":1",p2:w.p2,vias:viasAfter,direct:w.direct});
+  S.tool="select";S.selected="e"+el.id;
+  S.results=null;renderResults();
+  renderToolbar();fullRender();save();
+  toast("Резистор "+el.label+" встроен в провод");
+  return true;
+}
+
+function buildElectrical(){
+  const pins=[];
+  for(const el of S.elements){
+    const ts=terminalsOf(el);
+    for(let i=0;i<ts.length;i++)pins.push({key:el.id+":"+i,el:el.id,t:i,x:ts[i].x,y:ts[i].y});
+  }
+  const parent={};
+  for(const p of pins)parent[p.key]=p.key;
+  const find=a=>{while(parent[a]!==a){parent[a]=parent[parent[a]];a=parent[a];}return a;};
+  const union=(a,b)=>{a=find(a);b=find(b);if(a!==b)parent[b]=a;};
+  for(const w of S.wires){
+    if(parent[w.p1]!==undefined&&parent[w.p2]!==undefined)union(w.p1,w.p2);
+  }
+  for(const el of S.elements){
+    if(el.type!=="node")continue;
+    const np=el.id+":0";
+    const nd=terminalsOf(el)[0];
+    for(const p of pins){
+      if(p.key===np)continue;
+      if(Math.abs(p.x-nd.x)<0.5&&Math.abs(p.y-nd.y)<0.5)union(np,p.key);
+    }
+  }
+  const netOf={};
+  for(const p of pins)netOf[p.key]=find(p.key);
+  return{pins,netOf};
+}
+
+function addConductance(A,idx,isRef,i,j,g){
+  if(!isRef(i))A[idx[i]][idx[i]]+=g;
+  if(!isRef(j))A[idx[j]][idx[j]]+=g;
+  if(!isRef(i)&&!isRef(j)){A[idx[i]][idx[j]]-=g;A[idx[j]][idx[i]]-=g;}
+}
+
+function analyze(){
+  S.results=null;S.error=null;
+  const built=buildElectrical();
+  const netOf=built.netOf;
+  const resistors=[],sources=[];
+  for(const el of S.elements){
+    if(el.type==="resistor"){
+      const a=netOf[el.id+":0"],b=netOf[el.id+":1"];
+      const R=num(el.R);
+      if(R===null||!(R>0))throw new Error("У резистора "+el.label+" сопротивление должно быть больше 0.");
+      resistors.push({el,a,b,R,shorted:a===b});
+    }else if(el.type==="source"){
+      const neg=netOf[el.id+":0"],pos=netOf[el.id+":1"];
+      const E=num(el.E)||0,R0=num(el.R0);const r0=R0===null?0:R0;
+      if(neg===pos)throw new Error("Короткое замыкание источника "+el.label+": его выводы соединены напрямую.");
+      if(r0<0)throw new Error("Внутреннее сопротивление R0 не может быть отрицательным.");
+      sources.push({el,neg,pos,E,R0:r0});
+    }
+  }
+  if(sources.length===0)throw new Error("Добавьте на схему источник ЭДС.");
+
+  const netSet=new Set();
+  for(const k in netOf)netSet.add(netOf[k]);
+  const dsu={};netSet.forEach(n=>dsu[n]=n);
+  const f=a=>{while(dsu[a]!==a){dsu[a]=dsu[dsu[a]];a=dsu[a];}return a;};
+  const u=(a,b)=>{a=f(a);b=f(b);if(a!==b)dsu[b]=a;};
+  for(const r of resistors)if(!r.shorted)u(r.a,r.b);
+  for(const s of sources)u(s.neg,s.pos);
+  const comps={};
+  netSet.forEach(n=>{const c=f(n);(comps[c]=comps[c]||[]).push(n);});
+  const refOf={};
+  for(const c in comps){
+    let ref=null;
+    for(const s of sources)if(f(s.neg)===c){ref=s.neg;break;}
+    refOf[c]=ref||comps[c][0];
+  }
+  const compHasSrc={};
+  for(const s of sources)compHasSrc[f(s.neg)]=1;
+  const inCircuit=net=>!!compHasSrc[f(net)];
+  for(const r of resistors)r.inCircuit=inCircuit(r.a)&&inCircuit(r.b);
+
+  const isRef=n=>refOf[f(n)]===n;
+  const idx={};let m=0;
+  netSet.forEach(n=>{if(!isRef(n))idx[n]=m++;});
+  const ideal=sources.filter(s=>!(s.R0>0));
+  for(const s of ideal)s._bi=m++;
+  const size=m;
+  const A=zeros(size),bv=[];
+  for(let i=0;i<size;i++)bv.push(0);
+
+  for(const r of resistors){
+    if(r.shorted)continue;
+    addConductance(A,idx,isRef,r.a,r.b,1/r.R);
+  }
+  for(const s of sources){
+    if(s.R0>0){
+      addConductance(A,idx,isRef,s.neg,s.pos,1/s.R0);
+      if(!isRef(s.pos))bv[idx[s.pos]]+=s.E/s.R0;
+      if(!isRef(s.neg))bv[idx[s.neg]]-=s.E/s.R0;
+    }
+  }
+  for(const s of ideal){
+    if(!isRef(s.pos))A[idx[s.pos]][s._bi]+=1;
+    if(!isRef(s.neg))A[idx[s.neg]][s._bi]-=1;
+    if(!isRef(s.pos))A[s._bi][idx[s.pos]]+=1;
+    if(!isRef(s.neg))A[s._bi][idx[s.neg]]-=1;
+    bv[s._bi]=s.E;
+  }
+  const x=solveLinear(A,bv);
+  const V={};
+  netSet.forEach(n=>V[n]=isRef(n)?0:x[idx[n]]);
+  for(const s of ideal)s._Ibr=x[s._bi];
+
+  const netLabel={};let counter=0;
+  const namedNet={};
+  for(const el of S.elements)if(el.type==="node"&&el.name)namedNet[netOf[el.id+":0"]]=el.name;
+  const usedNames={};
+  const ordered=Array.from(netSet);
+  for(const n of ordered){
+    if(namedNet[n]!==undefined)netLabel[n]=namedNet[n];
+    else{
+      let nm;
+      do{nm="N"+(++counter);}while(usedNames[nm]);
+      netLabel[n]=nm;
+    }
+    usedNames[netLabel[n]]=1;
+  }
+
+  const netPos={},acc={};
+  for(const el of S.elements)if(el.type==="node")netPos[netOf[el.id+":0"]]={x:el.x,y:el.y};
+  for(const p of built.pins){
+    const net=netOf[p.key];
+    if(!acc[net])acc[net]={x:0,y:0,n:0};
+    acc[net].x+=p.x;acc[net].y+=p.y;acc[net].n++;
+  }
+  for(const k in acc)if(netPos[k]===undefined)netPos[k]={x:acc[k].x/acc[k].n,y:acc[k].y/acc[k].n};
+
+  const resOut=[];
+  for(const r of resistors){
+    const U=r.shorted?0:(V[r.a]-V[r.b]);
+    const I=r.shorted?0:U/r.R;
+    const P=I*I*r.R;
+    resOut.push({el:r.el,I,U,P,a:r.a,b:r.b,from:netLabel[r.a],to:netLabel[r.b],inCircuit:r.inCircuit});
+  }
+  const srcOut=[];
+  for(const s of sources){
+    let I;
+    if(s.R0>0)I=(s.E-(V[s.pos]-V[s.neg]))/s.R0;
+    else I=-s._Ibr;
+    const Uterm=V[s.pos]-V[s.neg];
+    const P=s.E*I;
+    const P0=I*I*s.R0;
+    srcOut.push({el:s.el,I,U:Uterm,E:s.E,R0:s.R0,P,P0,pos:netLabel[s.pos],neg:netLabel[s.neg],posNet:s.pos,negNet:s.neg});
+  }
+
+  const Pgen=srcOut.reduce((a,s)=>a+s.P,0);
+  const PabsR=resOut.reduce((a,r)=>a+r.P,0);
+  const Pabs0=srcOut.reduce((a,s)=>a+s.P0,0);
+  const Pabs=PabsR+Pabs0;
+
+  S.results={V,netLabel,netPos,namedNet,resistors:resOut,sources:srcOut,
+    Pgen,PabsR,Pabs0,Pabs,netSet,refOf,f,resistorsRaw:resistors,sourcesRaw:sources,netOf};
+  return S.results;
+}
+
+function foldCircuit(){
+  if(!S.results)return null;
+  const {resistorsRaw,sourcesRaw}=S.results;
+  const active=sourcesRaw.filter(s=>Math.abs(num(s.el.E))>1e-12);
+  if(active.length!==1)return{possible:false,reason:"В схеме несколько источников — пошаговое сворачивание не однозначно. Показан расчёт методом узловых потенциалов."};
+  const src=active[0];
+  const dsu={};
+  const find=x=>{if(dsu[x]===undefined)dsu[x]=x;while(dsu[x]!==x){dsu[x]=dsu[dsu[x]];x=dsu[x];}return x;};
+  const uni=(a,b)=>{a=find(a);b=find(b);if(a!==b)dsu[b]=a;};
+  for(const s of sourcesRaw)if(s!==src&&!(num(s.el.R0)>0))uni(s.neg,s.pos);
+  const A=find(src.pos),B=find(src.neg);
+  const edgesMap={};
+  const nodeEdges={};
+  let nid=0;
+  function touch(net){if(!nodeEdges[net])nodeEdges[net]=new Set();}
+  function addEdge(e){edgesMap[e.id]=e;touch(e.a);touch(e.b);nodeEdges[e.a].add(e.id);nodeEdges[e.b].add(e.id);}
+  function removeEdge(e){if(nodeEdges[e.a])nodeEdges[e.a].delete(e.id);if(nodeEdges[e.b])nodeEdges[e.b].delete(e.id);delete edgesMap[e.id];}
+  const snapshots=[];
+  function snapshot(hlId){
+    snapshots.push(Object.keys(edgesMap).map(id=>{
+      const e=edgesMap[id];
+      const rp=repEl(e);
+      return{id:e.id,a:e.a,b:e.b,R:e.R,name:e.name,hl:id===hlId,kind:e.kind,els:origIds(e),repId:rp?rp.id:undefined};
+    }));
+  }
+  const allOrig=[];
+  for(const r of resistorsRaw){
+    if(r.shorted||!r.inCircuit)continue;
+    const a=find(r.a),b=find(r.b);
+    if(a===b)continue;
+    const oe={id:"r"+r.el.id,a:a,b:b,R:r.R,kind:"orig",el:r.el,name:r.el.label};
+    allOrig.push(oe);addEdge(oe);
+  }
+  for(const s of sourcesRaw){
+    if(s===src)continue;
+    const r0=num(s.el.R0);
+    if(!(r0>0))continue;
+    const a=find(s.neg),b=find(s.pos);
+    if(a===b)continue;
+    const pel={id:"i"+s.el.id,type:"resistor",label:r0Name(s.el),R:r0};
+    const oe={id:"ri"+s.el.id,a:a,b:b,R:r0,kind:"orig",el:pel,name:r0Name(s.el)};
+    allOrig.push(oe);addEdge(oe);
+  }
+  snapshot(null);
+  const steps=[];
+  let guard=0;
+  while(guard++<1000){
+    const list=Object.keys(edgesMap).map(id=>edgesMap[id]);
+    let did=false;
+    outer:
+    for(let i=0;i<list.length;i++){
+      for(let j=i+1;j<list.length;j++){
+        const e1=list[i],e2=list[j];
+        const same=(e1.a===e2.a&&e1.b===e2.b)||(e1.a===e2.b&&e1.b===e2.a);
+        if(same){
+          const R=(e1.R*e2.R)/(e1.R+e2.R);
+          const ne={id:"p"+(++nid),a:e1.a,b:e1.b,R,kind:"parallel",children:[e1,e2],name:joinNames(e1.name,e2.name)};
+          e1.parent=ne;e2.parent=ne;
+          removeEdge(e1);removeEdge(e2);addEdge(ne);
+          steps.push({type:"parallel",e1,e2,ne,els:origIds(e1).concat(origIds(e2))});
+          snapshot(ne.id);
+          did=true;break outer;
+        }
+      }
+    }
+    if(did)continue;
+    for(const net in nodeEdges){
+      if(net===A||net===B)continue;
+      const ids=Array.from(nodeEdges[net]);
+      if(ids.length!==2)continue;
+      const e1=edgesMap[ids[0]],e2=edgesMap[ids[1]];
+      if(!e1||!e2)continue;
+      const o1=e1.a===net?e1.b:e1.a;
+      const o2=e2.a===net?e2.b:e2.a;
+      if(o1===net||o2===net)continue;
+      const ne={id:"s"+(++nid),a:o1,b:o2,R:e1.R+e2.R,kind:"series",children:[e1,e2],name:joinNames(e1.name,e2.name)};
+      e1.parent=ne;e2.parent=ne;
+      removeEdge(e1);removeEdge(e2);addEdge(ne);
+      steps.push({type:"series",e1,e2,ne,node:net,els:origIds(e1).concat(origIds(e2))});
+      snapshot(ne.id);
+      did=true;break;
+    }
+    if(!did)break;
+  }
+  const left=Object.keys(edgesMap).map(id=>edgesMap[id]);
+  let finalEdge=null,foldable=false;
+  if(left.length===0){foldable=true;}
+  else if(left.length===1){
+    const e=left[0];
+    if((e.a===A&&e.b===B)||(e.a===B&&e.b===A)){foldable=true;finalEdge=e;}
+  }
+  return{possible:true,foldable,steps,snapshots,Rext:finalEdge?finalEdge.R:0,finalEdge,A,B,src,allOrig};
+}
+function joinNames(a,b){
+  if(!a)return b||"R";
+  if(!b)return a;
+  const parts=(a+","+String(b).replace(/^R/,"")).replace(/^R/,"").split(",").filter(x=>x!=="");
+  let allNum=true;
+  for(const p of parts)if(!/^\d+$/.test(p))allNum=false;
+  if(allNum)parts.sort((x,y)=>(parseInt(x,10)||0)-(parseInt(y,10)||0));
+  return "R"+parts.join(",");
+}
+function origIds(e){
+  if(!e)return[];
+  if(e.kind==="orig")return[e.el.id];
+  let out=[];
+  for(const c of (e.children||[]))out=out.concat(origIds(c));
+  return out;
+}
+function repEl(e){
+  if(!e)return null;
+  if(e.kind==="orig")return e.el;
+  const a=repEl(e.children[0]),b=repEl(e.children[1]);
+  const av=parseInt((a&&a.label||"").replace(/[^0-9]/g,""))||0;
+  const bv=parseInt((b&&b.label||"").replace(/[^0-9]/g,""))||0;
+  return av<=bv?a:b;
+}
+function seriesUnits(fold){
+  const out=[];
+  for(const oe of fold.allOrig){
+    let u=oe;
+    while(u.parent&&u.parent.kind==="series")u=u.parent;
+    let g=null;
+    for(const m of out)if(m.unit===u){g=m;break;}
+    if(!g){g={unit:u,origs:[]};out.push(g);}
+    g.origs.push(oe);
+  }
+  return out;
+}
+function stageViewBox(){
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  const bb=(x,y)=>{if(x<minX)minX=x;if(y<minY)minY=y;if(x>maxX)maxX=x;if(y>maxY)maxY=y;};
+  for(const el of S.elements){bb(el.x,el.y);for(const t of terminalsOf(el))bb(t.x,t.y);}
+  for(const w of S.wires){const pts=routePoints(w)||[];for(const p of pts)bb(p.x,p.y);}
+  if(!isFinite(minX)){minX=0;minY=0;maxX=700;maxY=500;}
+  const pad=60;
+  return [minX-pad,minY-pad,(maxX-minX)+2*pad,(maxY-minY)+2*pad];
+}
+function stageSchematicSVG(edges,vb){
+  const state={};
+  for(const e of edges){
+    if(e.repId!==undefined&&state[e.repId]===undefined)state[e.repId]={rep:true,edge:e};
+    for(const id of (e.els||[]))if(state[id]===undefined)state[id]={rep:false,edge:e};
+  }
+  const keep=S.selected;S.selected=null;
+  let s='<svg class="foldmap" viewBox="'+vb[0]+' '+vb[1]+' '+vb[2]+' '+vb[3]+'">';
+  for(const w of S.wires)s+=wireStageSVG(w);
+  for(const el of S.elements){
+    if(el.type==="resistor"){
+      const st=state[el.id];
+      if(!st||!st.rep)continue;
+      if(st.edge.kind==="orig")s+=elementSVG(el,"el");
+      else s+=elementSVG({id:el.id,type:"resistor",x:el.x,y:el.y,angle:el.angle,label:st.edge.name,R:st.edge.R},"el repgreen");
+    }else{
+      s+=elementSVG(el,"el");
+    }
+  }
+  s+='</svg>';
+  S.selected=keep;
+  return s;
+}
+
+function unfoldCurrentsHTML(f,sfx,namer,baseCur){
+  const custom=(typeof namer==="function");
+  sfx=sfx||"";
+  if(!custom)namer=function(el){return curName(el);};
+  if(!baseCur)baseCur="I";
+  const fold=foldCircuit();
+  if(!fold||!fold.possible||!fold.foldable||!fold.finalEdge||!fold.src)return null;
+  const src=fold.src;
+  const I0=src.E/(src.R0+fold.Rext);
+  const U0=I0*fold.Rext;
+  const volSymOf=e=>{
+    const n1=S.results.namedNet[e.a],n2=S.results.namedNet[e.b];
+    const U=S.results.V[e.a]-S.results.V[e.b];
+    if(n1&&n2)return "U"+((U>=0)?(n1+n2):(n2+n1))+sfx;
+    return "U"+String(e.name||"").replace(/^R/,"")+sfx;
+  };
+  const fmtV=v=>f(Math.abs(v))+" В";
+  const fmtI=v=>f(Math.abs(v))+" А";
+  let h="";
+  const line=t=>{h+='<div class="formula">'+t+'</div>';};
+  const seriesNames=e=>{
+    if(e.kind==="orig")return e.el?[namer(e.el)+sfx]:[];
+    if(e.kind==="series"){let out=[];for(const c of e.children)out=out.concat(seriesNames(c));return out;}
+    return[];
+  };
+  const walk=(e,Ival,Uval,curSym,volSym)=>{
+    if(e.kind==="orig")return;
+    if(e.kind==="series"){
+      for(const c of e.children){
+        const cU=Ival*c.R;
+        let cvs=null;
+        if(c.kind==="parallel"){
+          cvs=volSymOf(c);
+          line(htmlSub(cvs)+" = "+htmlSub(curSym)+"·"+htmlSub(c.name)+" = "+fmtI(Ival)+" · "+f(c.R)+" Ом = "+fmtV(cU));
+        }
+        walk(c,Ival,cU,curSym,cvs);
+      }
+    }else{
+      for(const c of e.children){
+        if(c.kind==="parallel"){walk(c,0,Uval,null,volSym);continue;}
+        const ccs=custom?(namer(repEl(c))+sfx):("I"+String(c.name).replace(/^R/,"")+sfx);
+        const cI=Uval/c.R;
+        const names=seriesNames(c).filter(n=>n!==ccs);
+        const lhs=names.concat([ccs]).map(htmlSub).join(" = ");
+        line(lhs+" = "+htmlSub(volSym)+"/"+htmlSub(c.name)+" = "+fmtV(Uval)+" / "+f(c.R)+" Ом = "+fmtI(cI));
+        walk(c,cI,Uval,ccs,volSym);
+      }
+    }
+  };
+  const root=fold.finalEdge;
+  if(root.kind==="orig"&&root.el){
+    line(htmlSub(namer(root.el)+sfx)+" = U/"+htmlSub(root.el.label)+" = "+fmtV(U0)+" / "+f(root.R)+" Ом = "+fmtI(I0));
+  }else if(root.kind==="series"){
+    const names=seriesNames(root).filter(n=>n!==(baseCur+sfx));
+    const lhs=names.concat([baseCur+sfx]).map(htmlSub).join(" = ");
+    line(lhs+" = "+fmtI(I0));
+    walk(root,I0,U0,baseCur+sfx,"U"+sfx);
+  }else{
+    walk(root,I0,U0,baseCur+sfx,"U"+sfx);
+  }
+  return h;
+}
+
+function nodeVoltageLine(na,nb,f){
+  const R=S.results;
+  const n1=R.namedNet[na],n2=R.namedNet[nb];
+  if(!n1||!n2)return null;
+  const U=R.V[na]-R.V[nb];
+  const hi=U>=0?na:nb,lo=U>=0?nb:na;
+  const sym="U"+(U>=0?(n1+n2):(n2+n1));
+  if(Math.abs(U)<1e-15)return{symbol:sym,line:htmlSub(sym)+" = 0 В"};
+  const direct=R.resistorsRaw.filter(function(r){return !r.shorted&&r.inCircuit&&((r.a===hi&&r.b===lo)||(r.a===lo&&r.b===hi));});
+  let line;
+  if(direct.length){
+    let g=0;for(const r of direct)g+=1/r.R;const Rbr=1/g;
+    let rn=direct[0].el.label;for(let k=1;k<direct.length;k++)rn=joinNames(rn,direct[k].el.label);
+    const iname="I"+rn.replace(/^R/,"");
+    line=htmlSub(sym)+" = "+htmlSub(iname)+"·"+htmlSub(rn)+" = "+f(Math.abs(U/Rbr))+" · "+f(Rbr)+" = "+f(Math.abs(U))+" В";
+  }else{
+    const adj={};
+    for(const r of R.resistorsRaw){
+      if(r.shorted)continue;
+      (adj[r.a]=adj[r.a]||[]).push({net:r.b,r:r});
+      (adj[r.b]=adj[r.b]||[]).push({net:r.a,r:r});
+    }
+    const vis={};vis[hi]=1;const prev={};const q=[hi];let found=false;
+    while(q.length&&!found){
+      const cur=q.shift();
+      for(const e2 of (adj[cur]||[])){
+        if(vis[e2.net])continue;
+        vis[e2.net]=1;prev[e2.net]={from:cur,r:e2.r};
+        if(e2.net===lo){found=true;break;}
+        q.push(e2.net);
+      }
+    }
+    if(!found){line=htmlSub(sym)+" = "+f(Math.abs(U))+" В";}
+    else{
+      const edges=[];let cur=lo;
+      while(cur!==hi){const p=prev[cur];edges.unshift({from:p.from,to:cur,r:p.r});cur=p.from;}
+      let symT="",num=[],sum=0,k=0;
+      for(const e2 of edges){
+        const I=(R.V[e2.from]-R.V[e2.to])/e2.r.R;
+        sum+=I*e2.r.R;
+        symT+=(k>0?(I<0?" − ":" + "):"")+htmlSub(curName(e2.r.el))+"·"+htmlSub(e2.r.el.label);
+        num.push(f(Math.abs(I))+"·"+f(e2.r.R));
+        k++;
+      }
+      line=htmlSub(sym)+" = "+symT+" = "+num.join(" + ")+" = "+f(Math.abs(sum))+" В";
+    }
+  }
+  return{symbol:sym,line:line};
+}
+
+function kclHTML(f){
+  const R=S.results;
+  const contrib={};
+  const push=(net,name,leave)=>{if(!contrib[net])contrib[net]=[];contrib[net].push({name:name,c:leave});};
+  for(const r of R.resistors){
+    if(r.shorted||!r.inCircuit)continue;
+    push(r.a,curName(r.el),r.I);
+    push(r.b,curName(r.el),-r.I);
+  }
+  for(const s of R.sources){
+    push(s.negNet,curName(s.el),s.I);
+    push(s.posNet,curName(s.el),-s.I);
+  }
+  const nets={};
+  for(const net in R.namedNet)nets[net]=1;
+  for(const net in contrib)if((contrib[net]||[]).length>=3)nets[net]=1;
+  const list=Object.keys(nets).filter(net=>{
+    const c=(contrib[net]||[]).length;
+    return (net in R.namedNet)?(c>=1):(c>=3);
+  });
+  list.sort((a,b)=>{const la=R.netLabel[a]||"",lb=R.netLabel[b]||"";return la<lb?-1:(la>lb?1:0);});
+  let h="";
+  if(!list.length)return '<div class="muted">Нет узлов с ветвлениями для проверки.</div>';
+  for(const net of list){
+    const arr=contrib[net];
+    const enter=[],leave=[];
+    for(const x of arr){
+      if(Math.abs(x.c)<1e-12)continue;
+      if(x.c<0)enter.push({name:x.name,v:-x.c});else leave.push({name:x.name,v:x.c});
+    }
+    if(!enter.length&&!leave.length)continue;
+    const label=R.netLabel[net]||"?";
+    const inN=enter.map(x=>htmlSub(x.name)).join(" + ")||"0";
+    const outN=leave.map(x=>htmlSub(x.name)).join(" + ")||"0";
+    const inV=enter.map(x=>f(x.v)+" А").join(" + ")||"0 А";
+    const outV=leave.map(x=>f(x.v)+" А").join(" + ")||"0 А";
+    h+='<div class="formula">т. '+esc(label)+': '+inN+' = '+outN+'   '+inV+' = '+outV+'</div>';
+  }
+  return h;
+}
+
+function solveResistive(edges,ref,inj){
+  const nets=new Set();
+  for(const e of edges){nets.add(e.a);nets.add(e.b);}
+  for(const k in inj)nets.add(k);
+  const idx={};let m=0;
+  nets.forEach(n=>{if(n!==ref)idx[n]=m++;});
+  const A=zeros(m),b=[];for(let i=0;i<m;i++)b.push(0);
+  for(const e of edges){
+    if(!(e.R>0))continue;
+    const g=1/e.R;
+    if(e.a!==ref)A[idx[e.a]][idx[e.a]]+=g;
+    if(e.b!==ref)A[idx[e.b]][idx[e.b]]+=g;
+    if(e.a!==ref&&e.b!==ref){A[idx[e.a]][idx[e.b]]-=g;A[idx[e.b]][idx[e.a]]-=g;}
+  }
+  for(const k in inj)if(k!==ref)b[idx[k]]+=inj[k];
+  let sol;try{sol=solveLinear(A,b);}catch(e){return null;}
+  const V={};nets.forEach(n=>V[n]=(n===ref)?0:sol[idx[n]]);
+  return V;
+}
+
+function munHTML(){
+  const f=v=>fm(v);
+  let h='<h3>МУН — метод двух узлов</h3>';
+  const netOf=buildElectrical().netOf;
+  const named=[],seen={};
+  for(const el of S.elements){
+    if(el.type!=="node"||!el.name)continue;
+    const net=netOf[el.id+":0"];
+    if(seen[net])continue;seen[net]=1;named.push({net:net,name:el.name});
+  }
+  if(named.length!==2){
+    h+='<div class="muted">МУН применим к схеме ровно с двумя именованными узлами (сейчас их '+named.length+').</div>';
+    return h;
+  }
+  const A=named[0].net,B=named[1].net,na=named[0].name,nb=named[1].name;
+  const elems=[];
+  for(const el of S.elements){
+    if(el.type==="resistor"){const a=netOf[el.id+":0"],b=netOf[el.id+":1"];if(a!==b)elems.push({a:a,b:b,el:el,type:"R"});}
+    else if(el.type==="source"){const a=netOf[el.id+":0"],b=netOf[el.id+":1"];if(a!==b)elems.push({a:a,b:b,el:el,type:"E"});}
+  }
+  let groups=elems.map(e=>({a:e.a,b:e.b,members:[e]}));
+  const same=(g1,g2)=>(g1.a===g2.a&&g1.b===g2.b)||(g1.a===g2.b&&g1.b===g2.a);
+  const isAB=g=>same(g,{a:A,b:B});
+  let changed=true,guard=0;
+  while(changed&&guard++<5000){
+    changed=false;
+    for(let i=0;i<groups.length&&!changed;i++)for(let j=i+1;j<groups.length;j++){
+      if(same(groups[i],groups[j])&&!(isAB(groups[i])&&isAB(groups[j]))){
+        groups[i]={a:groups[i].a,b:groups[i].b,members:groups[i].members.concat(groups[j].members)};
+        groups.splice(j,1);changed=true;break;
+      }
+    }
+    if(changed)continue;
+    const deg={};
+    for(const g of groups){deg[g.a]=(deg[g.a]||0)+1;deg[g.b]=(deg[g.b]||0)+1;}
+    for(const v in deg){
+      if(v===A||v===B||deg[v]!==2)continue;
+      const inc=[];for(const g of groups)if(g.a===v||g.b===v)inc.push(g);
+      if(inc.length!==2)continue;
+      const g1=inc[0],g2=inc[1];
+      const o1=g1.a===v?g1.b:g1.a,o2=g2.a===v?g2.b:g2.a;
+      if(o1===v||o2===v)continue;
+      groups=groups.filter(g=>g!==g1&&g!==g2);
+      groups.push({a:o1,b:o2,members:g1.members.concat(g2.members)});
+      changed=true;break;
+    }
+  }
+  const branches=groups.filter(isAB);
+  if(branches.length===0){h+='<div class="muted">Не удалось выделить ветви между узлами '+esc(na)+' и '+esc(nb)+'.</div>';return h;}
+
+  const RES=S.results||null;
+  const Vex=RES?RES.V:null;
+  const UabEx=(Vex&&Vex[A]!==undefined&&Vex[B]!==undefined)?(Vex[A]-Vex[B]):null;
+  const curOf={};
+  if(RES){for(const r of RES.resistors)curOf[r.el.id]=r.I;for(const s of RES.sources)curOf[s.el.id]=s.I;}
+  const info=[];
+  for(let bi=0;bi<branches.length;bi++){
+    const br=branches[bi];
+    const path=br.members.find(m=>m.type==="E")||null;
+    const E=path?Math.abs(num(path.el.E)):0;
+    const rlabels=br.members.filter(m=>m.type==="R").map(m=>m.el.label);
+    const dsu={};const find=x=>{while(dsu[x]!==x){dsu[x]=dsu[dsu[x]];x=dsu[x];}return x;};
+    const union=(x,y)=>{x=find(x);y=find(y);if(x!==y)dsu[y]=x;};
+    for(const m of br.members)dsu[m.a]=dsu[m.a]||m.a,dsu[m.b]=dsu[m.b]||m.b;
+    for(const m of br.members)if(m.type==="E"&&!(num(m.el.R0)>0))union(m.a,m.b);
+    const edges=[];
+    for(const m of br.members){
+      const a=find(m.a),b=find(m.b);
+      if(m.type==="R")edges.push({a:a,b:b,R:num(m.el.R)});
+      else if(num(m.el.R0)>0)edges.push({a:a,b:b,R:num(m.el.R0)});
+    }
+    let R=Infinity;
+    const inj={};inj[find(A)]=1;
+    const Vv=solveResistive(edges,find(B),inj);
+    if(Vv&&Vv[find(A)]!==undefined)R=Vv[find(A)];
+    let sgn=0;
+    if(path){
+      if(UabEx!==null&&isFinite(R)){
+        let Ib=0;
+        for(const m of br.members){
+          let Ixy;
+          if(m.type==="R")Ixy=(Vex[m.a]!==undefined&&Vex[m.b]!==undefined)?(Vex[m.a]-Vex[m.b])/num(m.el.R):0;
+          else Ixy=curOf[m.el.id]||0;
+          if(m.a===A)Ib-=Ixy; else if(m.b===A)Ib+=Ixy;
+        }
+        const Ep=Ib*R+UabEx;
+        sgn=(Ep>=0)?1:-1;
+      }else{
+        const posNet=netOf[path.el.id+":1"];
+        const adj={};for(const m of br.members){(adj[m.a]=adj[m.a]||[]).push(m.b);(adj[m.b]=adj[m.b]||[]).push(m.a);}
+        const d={};d[posNet]=0;const q=[posNet];
+        while(q.length){const cur=q.shift();for(const nx of (adj[cur]||[]))if(!(nx in d)){d[nx]=d[cur]+1;q.push(nx);}}
+        const da=(d[A]===undefined)?Infinity:d[A],db=(d[B]===undefined)?Infinity:d[B];
+        sgn=(da<=db)?1:-1;
+      }
+    }
+    info.push({members:br.members,rlabels:rlabels,E:E,R:R,s:sgn,src:path,elabel:path?(path.el.label||("E"+(bi+1))):null});
+  }
+  info.forEach(it=>{
+    if(it.src){it.o=0;it.k=parseInt((it.src.el.label||"").replace(/[^0-9]/g,""))||0;}
+    else{let m=Infinity;for(const mem of it.members){const v=parseInt((mem.el.label||"").replace(/[^0-9]/g,""))||0;if(v<m)m=v;}it.o=1;it.k=(m===Infinity?1e9:m);}
+  });
+  info.sort((a,b)=>(a.o!==b.o)?(a.o-b.o):(a.k-b.k));
+  const gs=info.map(it=>it.R>0?1/it.R:0);
+  let sumg=0,sumEg=0;
+  info.forEach((it,k)=>{sumg+=gs[k];sumEg+=it.s*it.E*gs[k];});
+  if(Math.abs(sumg)<1e-12){h+='<div class="muted">Суммарная проводимость равна нулю.</div>';return h;}
+  const Uab=sumEg/sumg;
+
+  const fg=v=>{const a=Math.abs(v);let d=(a>0&&a<0.001)?5:3;let t=v.toFixed(d);if(t.indexOf(".")>=0)t=t.replace(/0+$/,"").replace(/\.$/,"");if(t==="-0")t="0";return t;};
+  h+='<div class="step"><span class="n">1.</span>Ветви между узлами '+esc(na)+' и '+esc(nb)+'. Все токи направлены от '+esc(nb)+' к '+esc(na)+'.</div>';
+  info.forEach((it,k)=>
+    h+='<div class="formula">Ветвь '+(k+1)+': R'+(k+1)+' = '+f(it.R)+' Ом'+(it.rlabels.length?(' ('+it.rlabels.join(", ")+')'):'')+
+      (it.E>0?(', '+htmlSub(it.elabel)+' = '+f(it.E)+' В — плюс к узлу '+esc(it.s>=0?na:nb)+', знак '+(it.s>=0?'(+)':'(−)')):' , без источника')+'</div>'
+  );
+  h+='<div class="step"><span class="n">2.</span>Проводимости ветвей (до 0.001 См).</div>';
+  info.forEach((it,k)=>h+='<div class="formula">g'+(k+1)+' = 1/R'+(k+1)+' = 1 / '+f(it.R)+' = '+fg(gs[k])+' См</div>');
+  let symTerms="",numSubst="",numEval="",denSubst="";
+  let numVal=0,idx=0;
+  info.forEach((it,k)=>{
+    denSubst+=(k===0?"":" + ")+fg(gs[k]);
+    if(it.E>0){
+      const sv=it.s*it.E*gs[k];
+      const sep=(idx===0)?(sv<0?"−":""):(" "+(sv<0?"−":"+")+" ");
+      symTerms+=sep+htmlSub(it.elabel)+"·g"+(k+1);
+      numSubst+=sep+f(it.E)+"·"+fg(gs[k]);
+      numEval+=sep+f(it.E*gs[k]);
+      numVal+=sv;idx++;
+    }
+  });
+  if(idx===0){symTerms="0";numSubst="0";numEval="0";}
+  h+='<div class="step"><span class="n">3.</span>Узловое напряжение.</div>';
+  h+='<div class="formula">U'+esc(na+nb)+' = ('+symTerms+') / ('+info.map((it,k)=>"g"+(k+1)).join(" + ")+')</div>';
+  h+='<div class="formula">= ('+numSubst+') / ('+denSubst+')</div>';
+  h+='<div class="formula">= ('+numEval+') / ('+f(sumg)+') = '+f(numVal)+' / '+f(sumg)+' = '+f(Uab)+' В</div>';
+  h+='<div class="step"><span class="n">4.</span>Токи в ветвях.</div>';
+  info.forEach((it,k)=>{
+    const g=gs[k],E=it.E,I=(it.s*E-Uab)*g;
+    let line;
+    if(E===0)line=htmlSub("I"+(k+1))+' = −U'+esc(na+nb)+'·g'+(k+1)+' = −'+f(Uab)+' · '+fg(g)+' = '+f(I)+' А';
+    else if(it.s>=0)line=htmlSub("I"+(k+1))+' = ('+htmlSub(it.elabel)+' − U'+esc(na+nb)+')·g'+(k+1)+' = ('+f(E)+' − '+f(Uab)+') · '+fg(g)+' = '+f(I)+' А';
+    else line=htmlSub("I"+(k+1))+' = −('+htmlSub(it.elabel)+' + U'+esc(na+nb)+')·g'+(k+1)+' = −('+f(E)+' + '+f(Uab)+') · '+fg(g)+' = '+f(I)+' А';
+    h+='<div class="formula">'+line+'</div>';
+  });
+  let ssum=0;const terms=[];
+  info.forEach((it,k)=>{ssum+=(it.s*it.E-Uab)*gs[k];terms.push(htmlSub("I"+(k+1)));});
+  h+='<div class="step"><span class="n">5.</span>Проверка по первому закону Кирхгофа.</div>';
+  h+='<div class="formula">'+terms.join(" + ")+' = '+f(ssum)+' А ≈ 0</div>';
+  return h;
+}
+
+function foldStepsHTML(fold,f,srcName){
+  let h="";
+  if(!srcName)srcName=fold&&fold.src?curName(fold.src.el):"I";
+  if(!fold||!fold.possible)return h;
+  if(fold.steps.length===0&&fold.foldable){
+    h+='<div class="formula">Нет резисторов для сворачивания.</div>';
+  }else{
+    for(let i=0;i<fold.steps.length;i++){
+      const st=fold.steps[i];
+      if(st.type==="series"){
+        h+='<div class="step">Этап '+(i+1)+'. Последовательное соединение: '+esc(st.e1.name)+' и '+esc(st.e2.name)+'.</div>';
+        h+='<div class="formula">'+esc(st.ne.name)+' = '+esc(st.e1.name)+' + '+esc(st.e2.name)+' = '+f(st.e1.R)+' + '+f(st.e2.R)+' = '+f(st.ne.R)+' Ом</div>';
+      }else{
+        h+='<div class="step">Этап '+(i+1)+'. Параллельное соединение: '+esc(st.e1.name)+' и '+esc(st.e2.name)+'.</div>';
+        h+='<div class="formula">'+esc(st.ne.name)+' = ('+esc(st.e1.name)+'·'+esc(st.e2.name)+') / ('+esc(st.e1.name)+'+'+esc(st.e2.name)+') = ('+f(st.e1.R)+'·'+f(st.e2.R)+') / ('+f(st.e1.R)+'+'+f(st.e2.R)+') = '+f(st.ne.R)+' Ом</div>';
+      }
+    }
+  }
+  if(fold.foldable){
+    const Rext=fold.Rext,R0=fold.src.R0,Rtot=R0+Rext,I=fold.src.E/Rtot;
+    const rn=r0Name(fold.src.el);
+    h+='<div class="formula">Rэ = '+f(Rext)+' Ом;  '+rn+' + Rэ = '+f(R0)+' + '+f(Rext)+' = '+f(Rtot)+' Ом</div>';
+    h+='<div class="formula">'+htmlSub(srcName)+' = E / ('+rn+' + Rэ) = '+f(fold.src.E)+' / '+f(Rtot)+' = '+f(I)+' А</div>';
+  }
+  return h;
+}
+function circuitBranches(){
+  const netOf=buildElectrical().netOf;
+  const named=[],seen={};
+  for(const el of S.elements){
+    if(el.type!=="node"||!el.name)continue;
+    const net=netOf[el.id+":0"];
+    if(seen[net])continue;seen[net]=1;named.push({net:net,name:el.name});
+  }
+  if(named.length!==2)return null;
+  const A=named[0].net,B=named[1].net,na=named[0].name,nb=named[1].name;
+  const elems=[];
+  for(const el of S.elements){
+    if(el.type==="resistor"){const a=netOf[el.id+":0"],b=netOf[el.id+":1"];if(a!==b)elems.push({a:a,b:b,el:el,type:"R"});}
+    else if(el.type==="source"){const a=netOf[el.id+":0"],b=netOf[el.id+":1"];if(a!==b)elems.push({a:a,b:b,el:el,type:"E"});}
+  }
+  let groups=elems.map(e=>({a:e.a,b:e.b,members:[e]}));
+  const same=(g1,g2)=>(g1.a===g2.a&&g1.b===g2.b)||(g1.a===g2.b&&g1.b===g2.a);
+  const isAB=g=>same(g,{a:A,b:B});
+  let changed=true,guard=0;
+  while(changed&&guard++<5000){
+    changed=false;
+    for(let i=0;i<groups.length&&!changed;i++)for(let j=i+1;j<groups.length;j++){
+      if(same(groups[i],groups[j])&&!(isAB(groups[i])&&isAB(groups[j]))){
+        groups[i]={a:groups[i].a,b:groups[i].b,members:groups[i].members.concat(groups[j].members)};
+        groups.splice(j,1);changed=true;break;
+      }
+    }
+    if(changed)continue;
+    const deg={};for(const g of groups){deg[g.a]=(deg[g.a]||0)+1;deg[g.b]=(deg[g.b]||0)+1;}
+    for(const v in deg){
+      if(v===A||v===B||deg[v]!==2)continue;
+      const inc=[];for(const g of groups)if(g.a===v||g.b===v)inc.push(g);
+      if(inc.length!==2)continue;
+      const g1=inc[0],g2=inc[1];
+      const o1=g1.a===v?g1.b:g1.a,o2=g2.a===v?g2.b:g2.a;
+      if(o1===v||o2===v)continue;
+      groups=groups.filter(g=>g!==g1&&g!==g2);
+      groups.push({a:o1,b:o2,members:g1.members.concat(g2.members)});
+      changed=true;break;
+    }
+  }
+  const branches=groups.filter(isAB);
+  branches.forEach(b=>{
+    const s=b.members.find(m=>m.type==="E");
+    if(s){b.o=0;b.k=parseInt((s.el.label||"").replace(/[^0-9]/g,""))||0;}
+    else{let m=Infinity;for(const mem of b.members){const v=parseInt((mem.el.label||"").replace(/[^0-9]/g,""))||0;if(v<m)m=v;}b.o=1;b.k=(m===Infinity?1e9:m);}
+  });
+  branches.sort((x,y)=>(x.o!==y.o)?(x.o-y.o):(x.k-y.k));
+  return{A:A,B:B,na:na,nb:nb,branches:branches};
+}
+function branchInfo(){
+  const cb=circuitBranches();
+  if(!cb)return null;
+  const branches=cb.branches;
+  const RES=S.results,Vex=RES?RES.V:null;
+  const A=cb.A,B=cb.B;
+  const UabEx=(Vex&&Vex[A]!==undefined&&Vex[B]!==undefined)?(Vex[A]-Vex[B]):null;
+  const curOf={};
+  if(RES){RES.resistors.forEach(r=>{curOf[r.el.id]=r.I;});RES.sources.forEach(s=>{curOf[s.el.id]=s.I;});}
+  const info=[];
+  branches.forEach((br,bi)=>{
+    const path=br.members.find(m=>m.type==="E")||null;
+    const E=path?Math.abs(num(path.el.E)):0;
+    const rlabels=br.members.filter(m=>m.type==="R").map(m=>m.el.label);
+    const dsu={};const find=x=>{if(dsu[x]===undefined)dsu[x]=x;while(dsu[x]!==x){dsu[x]=dsu[dsu[x]];x=dsu[x];}return x;};
+    const uni=(a,b)=>{a=find(a);b=find(b);if(a!==b)dsu[b]=a;};
+    for(const m of br.members){dsu[m.a]=dsu[m.a]||m.a;dsu[m.b]=dsu[m.b]||m.b;}
+    for(const m of br.members)if(m.type==="E"&&!(num(m.el.R0)>0))uni(m.a,m.b);
+    const edges=[];
+    for(const m of br.members){const a=find(m.a),b=find(m.b);if(m.type==="R")edges.push({a:a,b:b,R:num(m.el.R)});else if(num(m.el.R0)>0)edges.push({a:a,b:b,R:num(m.el.R0)});}
+    let R=Infinity;const inj={};inj[find(A)]=1;const Vv=solveResistive(edges,find(B),inj);if(Vv&&Vv[find(A)]!==undefined)R=Vv[find(A)];
+    let s=0,Ibr=null;
+    if(UabEx!==null&&isFinite(R)){
+      let Ib=0;
+      for(const m of br.members){let Ixy;if(m.type==="R")Ixy=(Vex[m.a]!==undefined&&Vex[m.b]!==undefined)?(Vex[m.a]-Vex[m.b])/num(m.el.R):0;else Ixy=curOf[m.el.id]||0;if(m.a===A)Ib-=Ixy;else if(m.b===A)Ib+=Ixy;}
+      Ibr=Ib;
+      if(path){const Ep=Ib*R+UabEx;s=(Ep>=0)?1:-1;}
+    }
+    info.push({members:br.members,rlabels:rlabels,E:E,R:R,s:s,src:path,elabel:path?(path.el.label||("E"+(bi+1))):null,Ibr:Ibr});
+  });
+  return{A:cb.A,B:cb.B,na:cb.na,nb:cb.nb,info:info};
+}
+function mukuDirs(info){
+  return info.map(it=>it.src?(it.s>=0?1:-1):-1);
+}
+function mukuSystem(info){
+  const n=info.length;
+  const d=mukuDirs(info);
+  let ref=info.findIndex(it=>it.E===0);if(ref<0)ref=n-1;
+  const A=zeros(n),b=[];for(let i=0;i<n;i++)b.push(0);
+  for(let k=0;k<n;k++)A[0][k]=d[k];
+  b[0]=0;
+  let row=1;
+  for(let k=0;k<n;k++){
+    if(k===ref)continue;
+    A[row][k]=d[k]*info[k].R;
+    A[row][ref]=-d[ref]*info[ref].R;
+    b[row]=info[k].s*info[k].E-info[ref].s*info[ref].E;
+    row++;
+  }
+  let sol=null;try{sol=solveLinear(A,b);}catch(e){sol=null;}
+  return{d:d,ref:ref,sol:sol};
+}
+function mukuHTML(){
+  const f=v=>fm(v);
+  const I=k=>htmlSub("I"+k);
+  const sys=lines=>'<div class="sys">'+lines.map(l=>'<div class="formula">'+l+'</div>').join("")+'</div>';
+  const fmtT=terms=>{
+    let out="";
+    terms.forEach(t=>{
+      if(t.coef===0||!isFinite(t.coef))return;
+      const neg=t.coef<0,a=Math.abs(t.coef);
+      const body=(Math.abs(a-1)<1e-12?"":f(a)+"·")+t.name;
+      if(out==="")out=(neg?"−":"")+body;else out+=(neg?" − ":" + ")+body;
+    });
+    return out===""?"0":out;
+  };
+  let h='<h3>МУКУ — уравнения по законам Кирхгофа</h3>';
+  const bi=branchInfo();
+  if(!bi){h+='<div class="muted">МУКУ применим к схеме с двумя именованными узлами a и b.</div>';return h;}
+  const info=bi.info,n=info.length,na=bi.na,nb=bi.nb;
+  if(n<2){h+='<div class="muted">Нужно минимум две ветви.</div>';return h;}
+  const ms=mukuSystem(info),d=ms.d,ref=ms.ref,rinfo=info[ref],m=n-1;
+  const dirTxt=k=>d[k]>0?("от "+esc(nb)+" к "+esc(na)):("от "+esc(na)+" к "+esc(nb));
+  h+='<div class="step"><span class="n">1.</span>Неизвестных токов: '+n+' (по числу ветвей). Направление каждой ветви — по её источнику (для пассивных — от '+esc(na)+' к '+esc(nb)+').</div>';
+  info.forEach((it,k)=>h+='<div class="formula">Ветвь '+(k+1)+': R'+(k+1)+' = '+f(it.R)+' Ом'+(it.rlabels.length?(' ('+it.rlabels.join(", ")+')'):'')+(it.E>0?(', '+htmlSub(it.elabel)+' = '+f(it.E)+' В'):'')+' — ток '+I(k+1)+' '+dirTxt(k)+'</div>');
+
+  const enter=[],leave=[];
+  for(let k=0;k<n;k++)(d[k]>0?enter:leave).push(I(k+1));
+  const kcl=(enter.length?enter.join(" + "):"0")+" = "+(leave.length?leave.join(" + "):"0");
+  h+='<div class="step"><span class="n">2.</span>Первый закон Кирхгофа (узел '+esc(na)+'):</div>';
+  h+='<div class="formula">'+kcl+'</div>';
+
+  h+='<div class="step"><span class="n">3.</span>Второй закон Кирхгофа ('+m+' ур., контуры с ветвью '+(ref+1)+'):</div>';
+  const kvlSym=[],kvlNum=[],facs={};
+  for(let k=0;k<n;k++){
+    if(k===ref)continue;
+    const it=info[k];
+    const C=it.s*it.E-rinfo.s*rinfo.E;
+    const fac=C<0?-1:1;facs[k]=fac;
+    const lhsTerms=[];
+    if(it.E>0)lhsTerms.push({coef:fac*it.s,name:htmlSub(it.elabel)});
+    if(rinfo.E>0)lhsTerms.push({coef:-fac*rinfo.s,name:htmlSub(rinfo.elabel)});
+    const lhsS=fmtT(lhsTerms);
+    const rhsS=fmtT([{coef:fac*d[k],name:I(k+1)+"·R"+(k+1)},{coef:-fac*d[ref],name:I(ref+1)+"·R"+(ref+1)}]);
+    kvlSym.push(lhsS+" = "+rhsS);
+    const rhsN=fmtT([{coef:fac*d[k]*it.R,name:I(k+1)},{coef:-fac*d[ref]*rinfo.R,name:I(ref+1)}]);
+    kvlNum.push(f(fac*C)+" = "+rhsN);
+  }
+  h+=sys([kcl].concat(kvlSym));
+  h+='<div class="step"><span class="n">4.</span>Подставим числовые значения:</div>';
+  h+=sys([kcl].concat(kvlNum));
+
+  h+='<div class="step"><span class="n">5.</span>Из первого закона выразим '+I(ref+1)+' и подставим во 2-й закон:</div>';
+  const c={};const othersIdx=[];
+  for(let k=0;k<n;k++){if(k===ref)continue;othersIdx.push(k);c[k]=(d[ref]<0)?(d[k]>0?1:-1):(d[k]<0?1:-1);}
+  const refExpr=fmtT(othersIdx.map(k=>({coef:c[k],name:I(k+1)})));
+  h+='<div class="formula">'+I(ref+1)+" = "+refExpr+"</div>";
+
+  const mr=othersIdx.length;
+  const redA=zeros(mr),redB=[];
+  for(let a=0;a<mr;a++){
+    const k=othersIdx[a];
+    const fc=facs[k]||1;
+    redB.push(fc*(info[k].s*info[k].E-rinfo.s*rinfo.E));
+    for(let b2=0;b2<mr;b2++){const j=othersIdx[b2];redA[a][b2]=fc*(((j===k)?d[k]*info[k].R:0)-d[ref]*rinfo.R*c[j]);}
+  }
+  for(let a=0;a<mr;a++){
+    const k=othersIdx[a];const fc=facs[k]||1;
+    const expr=fmtT([{coef:fc*d[k]*info[k].R,name:I(k+1)},{coef:-fc*d[ref]*rinfo.R,name:"("+refExpr+")"}]);
+    h+='<div class="formula">'+f(redB[a])+" = "+expr+"</div>";
+  }
+  h+='<div class="step">Получим систему из '+mr+' уравнений с неизвестными '+othersIdx.map(k=>I(k+1)).join(", ")+':</div>';
+  const redLines=[];
+  for(let a=0;a<mr;a++){
+    const terms=[];
+    for(let b2=0;b2<mr;b2++)terms.push({coef:redA[a][b2],name:I(othersIdx[b2]+1)});
+    redLines.push(fmtT(terms)+" = "+f(redB[a]));
+  }
+  h+=sys(redLines);
+
+  h+='<div class="step"><span class="n">6.</span>Решение системы:</div>';
+  const solOther=new Array(mr).fill(0);
+  if(mr===1){
+    const v=redB[0]/redA[0][0];
+    h+='<div class="formula">'+f(redA[0][0])+"·"+I(othersIdx[0]+1)+" = "+f(redB[0])+" → "+I(othersIdx[0]+1)+" = "+f(redB[0])+" / "+f(redA[0][0])+" = "+f(v)+" А</div>";
+    solOther[0]=v;
+  }else if(mr===2){
+    const a11=redA[0][0],a12=redA[0][1],a21=redA[1][0],a22=redA[1][1],C1=redB[0],C2=redB[1];
+    const V0=I(othersIdx[0]+1),V1=I(othersIdx[1]+1);
+    const k1=Math.abs(a21),k2=Math.abs(a11),addOp=(a11*a21<=0);
+    if(Math.abs(a21)<1e-12||Math.abs(a11)<1e-12){
+      let s2=null;try{s2=solveLinear(redA,redB);}catch(e){s2=null;}
+      if(!s2){h+='<div class="muted">Система не решается.</div>';return h;}
+      solOther[0]=s2[0];solOther[1]=s2[1];
+      h+='<div class="formula">'+V0+" = "+f(s2[0])+" А</div><div class='formula'>"+V1+" = "+f(s2[1])+" А</div>";
+    }else{
+      const sgn=addOp?"+":"−";
+      h+='<div class="formula">'+fmtT([{coef:a11,name:V0},{coef:a12,name:V1}])+" = "+f(C1)+"  | *"+f(k1)+"</div>";
+      h+='<div class="formula">'+fmtT([{coef:a21,name:V0},{coef:a22,name:V1}])+" = "+f(C2)+"  | *"+f(k2)+"</div>";
+      h+='<div class="formula">&nbsp;</div>';
+      const eq1=fmtT([{coef:a11*k1,name:V0},{coef:a12*k1,name:V1}])+" = "+f(C1*k1);
+      const eq2=fmtT([{coef:a21*k2,name:V0},{coef:a22*k2,name:V1}])+" = "+f(C2*k2);
+      const bd=a12*k1+(addOp?a22*k2:-a22*k2);
+      const Cd=C1*k1+(addOp?C2*k2:-C2*k2);
+      const eqr="("+f(a12*k1)+" "+sgn+" "+f(a22*k2)+")·"+V1+" = "+f(C1*k1)+" "+sgn+" "+f(C2*k2);
+      h+='<div class="subtract"><div class="sminus">'+sgn+'</div><div class="seq">'+eq1+'</div><div class="seq">'+eq2+'</div><div class="sbar"></div><div class="sres">'+eqr+'</div></div>';
+      h+='<div class="formula">'+f(bd)+"·"+V1+" = "+f(Cd)+"</div>";
+      const I1v=Cd/bd;
+      h+='<div class="formula">'+V1+" = "+f(Cd)+" / "+f(bd)+"</div><div class=\"formula\">"+V1+" = "+f(I1v)+" А</div>";
+      h+='<div class="formula">Подставим в '+fmtT([{coef:a11,name:V0},{coef:a12,name:V1}])+" = "+f(C1)+":</div>";
+      const I0v=(C1-a12*I1v)/a11;
+      const t1=a12*I1v,top=t1>=0?"−":"+",tmag=f(Math.abs(t1));
+      h+='<div class="formula">'+fmtT([{coef:a11,name:V0},{coef:a12,name:f(I1v)}])+" = "+f(C1)+"</div>";
+      h+='<div class="formula">'+f(a11)+"·"+V0+" = "+f(C1)+" "+top+" "+tmag+"</div>";
+      h+='<div class="formula">'+V0+" = ("+f(C1)+" "+top+" "+tmag+") / "+f(a11)+"</div>";
+      h+='<div class="formula">'+V0+" = "+f(I0v)+" А</div>";
+      solOther[0]=I0v;solOther[1]=I1v;
+    }
+  }else{
+    let s2=null;try{s2=solveLinear(redA,redB);}catch(e){s2=null;}
+    if(!s2){h+='<div class="muted">Система не решается.</div>';return h;}
+    for(let a=0;a<mr;a++){solOther[a]=s2[a];h+='<div class="formula">'+I(othersIdx[a]+1)+" = "+f(s2[a])+" А</div>";}
+  }
+  const solAll=new Array(n).fill(0);
+  for(let a=0;a<mr;a++)solAll[othersIdx[a]]=solOther[a];
+  let Iref=0;for(let a=0;a<mr;a++)Iref+=c[othersIdx[a]]*solOther[a];
+  solAll[ref]=Iref;
+  let irefExpr="";
+  othersIdx.forEach(k=>{
+    const val=c[k]*solOther[othersIdx.indexOf(k)];
+    const neg=val<0,a=Math.abs(val);
+    if(irefExpr==="")irefExpr=(neg?"−":"")+f(a);else irefExpr+=(neg?" − ":" + ")+f(a);
+  });
+  h+='<div class="formula">'+I(ref+1)+" = "+refExpr+" = "+irefExpr+" = "+f(Iref)+" А</div>";
+  let enterVal=0,leaveVal=0;
+  for(let k=0;k<n;k++){if(d[k]>0)enterVal+=solAll[k];else leaveVal+=solAll[k];}
+  h+='<div class="formula">Проверка (1-й закон): '+enter.join(" + ")+" = "+f(enterVal)+"; "+leave.join(" + ")+" = "+f(leaveVal)+" → "+(Math.abs(enterVal-leaveVal)<1e-9?"верно":"не сходится")+'</div>';
+  return h;
+}
+function mnHTML(){
+  const f=v=>fm(v);
+  let h='<h3>МН — метод наложения</h3>';
+  const sources=S.elements.filter(e=>e.type==="source");
+  if(sources.length<2){h+='<div class="muted">Для МН нужно минимум два источника.</div>';return h;}
+  const cb=circuitBranches();
+  if(!cb){h+='<div class="muted">МН применим к схеме с двумя именованными узлами a и b.</div>';return h;}
+  const branches=cb.branches;
+  const repEls=branches.map(b=>{const s=b.members.find(m=>m.type==="E");return s?s.el:(b.members[0]?b.members[0].el:null);});
+  const nameMap={};
+  branches.forEach((b,j)=>{b.members.forEach(m=>{nameMap[String(m.el.id)]="I"+(j+1);});});
+  const namer=el=>{
+    if(!el)return "I";
+    const id=String(el.id);
+    if(nameMap[id]!==undefined)return nameMap[id];
+    if(id.charAt(0)==="i"&&nameMap[id.slice(1)]!==undefined)return nameMap[id.slice(1)];
+    return curName(el);
+  };
+  const savedE=S.elements.map(e=>e.type==="source"?e.E:null);
+  const primes=["′","″","‴","⁗"];
+  const schemes=[];
+  for(let k=0;k<sources.length;k++){
+    const bidx=branches.findIndex(b=>b.members.some(m=>m.el===sources[k]));
+    const srcName="I"+(bidx+1);
+    const pm=primes[k]||("("+(k+1)+")");
+    S.elements.forEach((e,i)=>{if(e.type==="source")e.E=(e===sources[k])?savedE[i]:0;});
+    let res=null;try{res=analyze();}catch(err){res=null;}
+    if(!res){S.elements.forEach((e,i)=>{if(e.type==="source")e.E=savedE[i];});return h+'<div class="errbox">Ошибка при расчёте схемы '+(k+1)+'.</div>';}
+    const cur={};
+    res.resistors.forEach(r=>{cur[r.el.id]=r.I;});
+    res.sources.forEach(s=>{cur[s.el.id]=s.I;});
+    schemes.push({active:sources[k],cur:cur,srcName:srcName,fold:foldStepsHTML(foldCircuit(),f,srcName),unf:unfoldCurrentsHTML(f,pm,namer,srcName)});
+  }
+  S.elements.forEach((e,i)=>{if(e.type==="source")e.E=savedE[i];});
+  try{analyze();}catch(err){}
+  h+='<div class="formula">Число расчётных схем = числу источников = '+sources.length+'; ветвей: '+branches.length+'.</div>';
+  schemes.forEach((sc,k)=>{
+    h+='<div class="step"><span class="n">Схема '+(k+1)+'.</span>Действует только '+esc(sc.active.label||("E"+(k+1)))+'; остальные источники заменены их внутренними сопротивлениями.</div>';
+    h+='<div class="step">Сопротивления:</div>';
+    h+=sc.fold||'<div class="muted">Схема не сворачивается.</div>';
+    h+='<div class="step">Токи в ветвях:</div>';
+    h+=sc.unf||'<div class="muted">Не сворачивается.</div>';
+    const pm=primes[k]||("("+(k+1)+")");
+    const parts=[];
+    branches.forEach((b,j)=>{const el=repEls[j];const I=el?(sc.cur[el.id]||0):0;parts.push(htmlSub("I"+(j+1)+pm)+" = "+f(I)+" А");});
+    h+='<div class="formula">Частичные токи ветвей: '+parts.join(";  ")+'</div>';
+  });
+  h+='<div class="step"><span class="n">Итог.</span>Искомые токи — алгебраическая сумма частичных токов (знак — по совпадению направления).</div>';
+  branches.forEach((b,j)=>{
+    const nm=[],vl=[];let sum=0;
+    schemes.forEach((sc,k)=>{
+      const el=repEls[j];if(!el)return;
+      const I=sc.cur[el.id]||0;sum+=I;
+      const pm=primes[k]||("("+(k+1)+")");
+      nm.push(htmlSub("I"+(j+1)+pm));vl.push(I);
+    });
+    let vstr="";
+    vl.forEach((v,i)=>{const neg=v<0;const mag=f(Math.abs(v));if(i===0)vstr+=(neg?"−":"")+mag;else vstr+=(neg?" − ":" + ")+mag;});
+    h+='<div class="formula">'+htmlSub("I"+(j+1))+' = '+nm.join(" + ")+' = '+vstr+' = '+f(sum)+' А</div>';
+  });
+  return h;
+}
+
+function summaryHTML(){
+  const f=v=>fm(v);
+  const bi=branchInfo();
+  if(!bi||!bi.info.length)return "";
+  const info=bi.info,n=info.length,A=bi.A,B=bi.B;
+  const g=info.map(it=>it.R>0?1/it.R:0);
+  let sg=0,se=0;for(let k=0;k<n;k++){sg+=g[k];se+=info[k].s*info[k].E*g[k];}
+  if(Math.abs(sg)<1e-12)return "";
+  const Uab=se/sg;
+  const rows=[];
+  if(S.methods.balance)rows.push({label:"Баланс",vals:info.map(it=>it.Ibr)});
+  if(S.methods.mun)rows.push({label:"МУН",vals:info.map((it,k)=>(it.s*it.E-Uab)*g[k])});
+  if(S.methods.muku){
+    const ms=mukuSystem(info);
+    rows.push({label:"МУКУ",vals:ms.sol||info.map(()=>NaN)});
+  }
+  if(S.methods.mn){
+    const sources=S.elements.filter(e=>e.type==="source");
+    const savedE=S.elements.map(e=>e.type==="source"?e.E:null);
+    const vals=new Array(n).fill(0);
+    const reps=info.map(it=>{const s=it.members.find(m=>m.type==="E");return s?s.el:(it.members[0]?it.members[0].el:null);});
+    for(const src of sources){
+      S.elements.forEach((e,i)=>{if(e.type==="source")e.E=(e===src)?savedE[i]:0;});
+      let res=null;try{res=analyze();}catch(err){res=null;}
+      if(res){
+        const cur={};
+        res.resistors.forEach(r=>{cur[r.el.id]=r.I;});
+        res.sources.forEach(s=>{cur[s.el.id]=s.I;});
+        for(let k=0;k<n;k++){const el=reps[k];if(el&&cur[el.id]!==undefined)vals[k]+=cur[el.id];}
+      }
+    }
+    S.elements.forEach((e,i)=>{if(e.type==="source")e.E=savedE[i];});
+    try{analyze();}catch(err){}
+    rows.push({label:"МН",vals:vals});
+  }
+  if(!rows.length)return "";
+  let h='<h3>Сводная таблица токов</h3><table><tr><th></th>';
+  for(let k=0;k<n;k++)h+='<th>'+htmlSub("I"+(k+1))+'</th>';
+  h+='</tr>';
+  for(const r of rows){
+    h+='<tr><td>'+esc(r.label)+'</td>';
+    for(let k=0;k<n;k++){
+      const v=r.vals[k];
+      h+='<td class="num">'+(v===null||v===undefined||isNaN(v)?"—":f(v))+' А</td>';
+    }
+    h+='</tr>';
+  }
+  h+='</table>';
+  return h;
+}
+function resultsHTML(){
+  if(S.error)return '<div class="errbox">'+esc(S.error)+"</div>";
+  if(!S.results)return '<p class="muted">Нажмите «Рассчитать».</p>';
+  let out="";
+  if(S.methods.balance)out+=balanceHTML();
+  if(S.methods.mun)out+=munHTML();
+  if(S.methods.mn)out+=mnHTML();
+  if(S.methods.muku)out+=mukuHTML();
+  out+=summaryHTML();
+  if(out==="")out='<p class="muted">Отметьте, что нужно вычислить.</p>';
+  return out;
+}
+function balanceHTML(){
+  const R=S.results;
+  const step=S.precision;
+  const f=v=>fm(v);
+  let h="";
+
+  h+="<h3>1. Исходные данные</h3>";
+  const src0=R.sources[0];
+  h+='<div class="formula">E = '+f(src0.E)+' В;  '+r0Name(src0.el)+' = '+f(src0.R0)+' Ом;  шаг округления = '+f(step)+'</div>';
+  if(S.givenI!=="")h+='<div class="formula">Задано: I = '+esc(S.givenI)+' А</div>';
+
+  h+="<h3>2. Метод решения</h3>";
+  if(R.sources.length===1)h+='<div class="formula">Метод узловых потенциалов + сворачивание схемы. Опорный узел: '+esc(R.netLabel[R.sources[0].negNet])+' (0 В).</div>';
+  else h+='<div class="formula">Метод узловых напряжений (схема с несколькими источниками). Опорный узел: '+esc(R.netLabel[R.sources[0].negNet])+' (0 В).</div>';
+
+  const fold=foldCircuit();
+  h+="<h3>3. Сворачивание схемы по этапам</h3>";
+  if(fold&&fold.possible){
+    if(fold.steps.length===0&&fold.foldable){
+      h+='<div class="step">Нет резисторов для сворачивания — внешняя цепь отсутствует.</div>';
+    }else{
+      for(let i=0;i<fold.steps.length;i++){
+        const st=fold.steps[i];
+        if(st.type==="series"){
+          h+='<div class="step"><span class="n">Этап '+(i+1)+'.</span>Последовательное соединение: '+esc(st.e1.name)+' и '+esc(st.e2.name)+' (узел '+esc(R.netLabel[st.node])+').</div>';
+          h+='<div class="formula">'+esc(st.ne.name)+' = '+esc(st.e1.name)+' + '+esc(st.e2.name)+' = '+f(st.e1.R)+' + '+f(st.e2.R)+' = '+f(st.ne.R)+' Ом</div>';
+        }else{
+          h+='<div class="step"><span class="n">Этап '+(i+1)+'.</span>Параллельное соединение: '+esc(st.e1.name)+' и '+esc(st.e2.name)+'.</div>';
+          h+='<div class="formula">'+esc(st.ne.name)+' = ('+esc(st.e1.name)+'·'+esc(st.e2.name)+') / ('+esc(st.e1.name)+'+'+esc(st.e2.name)+') = ('+f(st.e1.R)+'·'+f(st.e2.R)+') / ('+f(st.e1.R)+'+'+f(st.e2.R)+') = '+f(st.ne.R)+' Ом</div>';
+        }
+      }
+    }
+    if(fold.foldable){
+      const Rext=fold.Rext;
+      const Rtot=fold.src.R0+Rext;
+      const I=fold.src.E/Rtot;
+      const Uext=I*Rext;
+      const rnF=r0Name(fold.src.el);
+      h+='<div class="step"><span class="n">Итог.</span>Rэ = '+f(Rext)+' Ом (объединение всех резисторов, без внутреннего сопротивления источника).</div>';
+      h+='<div class="formula">'+rnF+' + Rэ = '+f(fold.src.R0)+' + '+f(Rext)+' = '+f(Rtot)+' Ом</div>';
+      h+='<div class="formula">I = E / ('+rnF+' + Rэ) = '+f(fold.src.E)+' / '+f(Rtot)+' = '+f(I)+' А</div>';
+      h+='<div class="formula">U = I · Rэ = '+f(I)+' · '+f(Rext)+' = '+f(Uext)+' В</div>';
+    }else{
+      h+='<div class="step">Схема не сворачивается только последовательно и параллельно (например, мостовая). R<sub>экв</sub> найден по закону Ома из метода узловых потенциалов.</div>';
+    }
+  }else if(fold){
+    h+='<div class="step">'+esc(fold.reason)+'</div>';
+  }
+
+  h+="<h3>4. Эквивалентное сопротивление</h3>";
+  const s0=R.sources[0];
+  if(Math.abs(s0.I)>1e-12){
+    const Rext0=s0.U/Math.abs(s0.I);
+    const rnS=r0Name(s0.el);
+    h+='<div class="formula">Rэ = U / I = '+f(s0.U)+' / '+f(Math.abs(s0.I))+' = '+f(Rext0)+' Ом</div>';
+    h+='<div class="formula">'+rnS+' + Rэ = '+f(s0.R0)+' + '+f(Rext0)+' = '+f(s0.R0+Rext0)+' Ом</div>';
+    h+='<div class="formula">I = E / ('+rnS+' + Rэ) = '+f(s0.E)+' / '+f(s0.R0+Rext0)+' = '+f(Math.abs(s0.I))+' А</div>';
+  }else{
+    h+='<div class="formula">Ток источника равен нулю — внешняя цепь разомкнута (Rэ = ∞).</div>';
+  }
+
+  h+="<h3>5. Токи элементов</h3>";
+  const unfold=unfoldCurrentsHTML(f);
+  if(unfold){
+    h+=unfold;
+  }else{
+  const fold5=foldCircuit();
+  if(fold5&&fold5.possible&&fold5.allOrig&&fold5.allOrig.length){
+    const units=seriesUnits(fold5);
+    const minNum=g=>{let m=Infinity;for(const oe of g.origs){const v=parseInt((oe.el.label||"").replace(/[^0-9]/g,""),10)||0;if(v<m)m=v;}return m;};
+    units.sort((a,b)=>minNum(a)-minNum(b));
+    const printed={};
+    for(const g of units){
+      const u=g.unit;
+      const Uu=R.V[u.a]-R.V[u.b];
+      const Iu=Uu/u.R;
+      let first=g.origs[0];
+      for(const oe of g.origs){
+        const av=parseInt((oe.el.label||"").replace(/[^0-9]/g,""))||0;
+        const bv=parseInt((first.el.label||"").replace(/[^0-9]/g,""))||0;
+        if(av<bv)first=oe;
+      }
+      const vi=nodeVoltageLine(u.a,u.b,f);
+      const uname=vi?vi.symbol:"U";
+      if(vi&&!printed[vi.symbol]){h+='<div class="formula">'+vi.line+'</div>';printed[vi.symbol]=1;}
+      h+='<div class="formula">'+htmlSub(curName(first.el))+' = '+uname+'/'+htmlSub(u.name)+' = '+f(Math.abs(Uu))+' В / '+f(u.R)+' Ом = '+f(Math.abs(Iu))+' А</div>';
+    }
+  }else{
+    for(const r of R.resistors){
+      if(!r.inCircuit)continue;
+      h+='<div class="formula">'+htmlSub(curName(r.el))+' = U/'+htmlSub(r.el.label)+' = '+f(Math.abs(r.U))+' В / '+f(r.el.R)+' Ом = '+f(Math.abs(r.I))+' А</div>';
+    }
+  }
+  }
+  for(const s of R.sources){
+    let line;
+    if(s.R0>0)line=htmlSub(curName(s.el))+' = (E − U)/'+htmlSub(r0Name(s.el))+' = ('+f(s.E)+' − '+f(s.U)+') / '+f(s.R0)+' = '+f(s.I)+' А';
+    else if(Math.abs(s.I)>1e-12)line=htmlSub(curName(s.el))+' = E/R = '+f(s.E)+' / '+f(Math.abs(s.E/s.I))+' = '+f(Math.abs(s.I))+' А';
+    else line=htmlSub(curName(s.el))+' = 0 А (внешняя цепь разомкнута)';
+    const dir=s.I>=0?"внутри от − к +, источник отдаёт энергию":"источник потребляет энергию";
+    h+='<div class="formula">'+line+'   ('+dir+')</div>';
+  }
+
+  h+="<h3>6. Проверка токов по первому закону Кирхгофа</h3>";
+  h+=kclHTML(f);
+
+  h+="<h3>7. Мощности</h3>";
+  for(const s of R.sources){
+    const suf=R.sources.length>1?(s.el.label.replace(/[^0-9]/g,"")||""):"";
+    h+='<div class="formula">'+htmlSub("Pист"+suf)+' = E·I = '+f(s.E)+' · '+f(s.I)+' = '+f(s.P)+' Вт</div>';
+    if(s.R0>0)h+='<div class="formula">'+htmlSub("P0"+suf)+' = I²·'+htmlSub(r0Name(s.el))+' = '+f(Math.abs(s.I))+'² · '+f(s.R0)+' = '+f(s.P0)+' Вт</div>';
+  }
+  const resSorted=R.resistors.filter(r=>r.inCircuit).sort((a,b)=>{
+    const av=parseInt((a.el.label||"").replace(/[^0-9]/g,""),10)||0;
+    const bv=parseInt((b.el.label||"").replace(/[^0-9]/g,""),10)||0;
+    return av-bv;
+  });
+  for(const r of resSorted){
+    const I=Math.abs(r.I);
+    h+='<div class="formula">'+htmlSub("P"+curName(r.el).replace(/^I/,""))+' = '+htmlSub(curName(r.el))+'²·'+htmlSub(r.el.label)+' = '+f(I)+'² · '+f(r.el.R)+' = '+f(r.P)+' Вт</div>';
+  }
+
+  h+="<h3>8. Баланс мощностей</h3>";
+  const gen=R.Pgen,abs=R.Pabs;
+  const ok=Math.abs(gen-abs)<Math.max(1e-7,Math.abs(gen)*1e-6);
+  h+='<div class="formula">Σ P<sub>источников</sub> = '+R.sources.map(s=>f(s.P)).join(" + ")+" = "+f(gen)+" Вт</div>";
+  h+='<div class="formula">Σ P<sub>приёмников</sub> = '+R.resistors.map(r=>f(r.P)).join(" + ")+(R.Pabs0>1e-12?(" + "+f(R.Pabs0)):"")+" = "+f(abs)+" Вт</div>";
+  h+='<div class="formula">'+f(gen)+' Вт '+(ok?"=":"≠")+" "+f(abs)+' Вт — баланс '+(ok?'<span class="ok">соблюдается</span>':'<span class="no">нарушен</span>')+"</div>";
+
+  if(S.givenI!==""){
+    const given=num(S.givenI);
+    if(given!==null){
+      const cmp=Math.abs(Math.abs(given)-Math.abs(s0.I))<Math.max(1e-7,Math.abs(s0.I)*1e-6);
+      h+="<h3>9. Проверка заданного тока</h3>";
+      h+='<div class="formula">I<sub>задано</sub> = '+f(given)+' А;  I<sub>расчёт</sub> = '+f(Math.abs(s0.I))+' А → '+(cmp?'<span class="ok">совпадает</span>':'<span class="no">не совпадает</span>')+'</div>';
+    }
+  }
+  return h;
+}
+function renderResults(){
+  $("results").innerHTML=resultsHTML();
+}
+function invalidate(){
+  if(S.results||S.error){S.results=null;S.error=null;renderResults();renderCanvas();}
+}
+
+function recalc(){
+  try{
+    S.error=null;
+    analyze();
+    renderResults();
+    renderCanvas();
+    toast("Расчёт выполнен");
+  }catch(e){
+    S.results=null;
+    S.error=e.message||String(e);
+    renderResults();
+    renderCanvas();
+  }
+}
+
+function save(){
+  try{
+    localStorage.setItem("circuitSolver",JSON.stringify({
+      elements:S.elements,wires:S.wires,nextId:S.nextId,precision:S.precision,givenI:S.givenI,
+      cols:S.cols,rows:S.rows,wireMode:S.wireMode,methods:S.methods
+    }));
+  }catch(e){}
+}
+function load(){
+  try{
+    const raw=localStorage.getItem("circuitSolver");
+    if(!raw)return false;
+    const d=JSON.parse(raw);
+    if(!d||!d.elements)return false;
+    S.elements=d.elements;S.wires=d.wires||[];S.nextId=d.nextId||(S.elements.reduce((a,e)=>Math.max(a,e.id),0)+1);
+    S.precision=d.precision||0.01;S.givenI=d.givenI||"";
+    S.cols=d.cols||70;S.rows=d.rows||50;S.wireMode=d.wireMode||"ortho";
+    if(d.methods)S.methods=d.methods;
+    for(const el of S.elements){
+      if(el.type==="resistor"&&el.angle===undefined){el.angle=el.dir==="v"?90:0;delete el.dir;}
+    }
+    return true;
+  }catch(e){return false;}
+}
+function demo(){
+  const src=addSource(250,450);src.E=12;src.R0=1;
+  const r1=addResistor(420,300);r1.R=2;
+  const b=addNode(490,300);b.name="b";
+  const r2=addResistor(560,300);r2.R=4;
+  S.wires=[
+    {id:S.nextId++,p1:src.id+":0",p2:r1.id+":0"},
+    {id:S.nextId++,p1:r1.id+":1",p2:b.id+":0"},
+    {id:S.nextId++,p1:b.id+":0",p2:r2.id+":0"},
+    {id:S.nextId++,p1:r2.id+":1",p2:src.id+":1"}
+  ];
+}
+
+function init(){
+  const cv=$("cv");
+  cv.addEventListener("pointerdown",onDown);
+  window.addEventListener("pointermove",onMove);
+  window.addEventListener("pointerup",onUp);
+  window.addEventListener("pointercancel",onUp);
+  window.addEventListener("blur",()=>{drag=null;dragPointer=null;});
+  cv.addEventListener("contextmenu",e=>e.preventDefault());
+
+  for(const b of document.querySelectorAll("#tools button")){
+    b.addEventListener("click",()=>setTool(b.dataset.tool));
+  }
+  for(const b of document.querySelectorAll("#wiremode button")){
+    b.addEventListener("click",()=>{S.wireMode=b.getAttribute("data-wm");renderToolbar();save();});
+  }
+  const ic=$("in-cols"),ir=$("in-rows");
+  if(ic)ic.addEventListener("change",e=>{S.cols=Math.max(20,Math.min(400,parseInt(e.target.value,10)||70));renderCanvas();save();});
+  if(ir)ir.addEventListener("change",e=>{S.rows=Math.max(20,Math.min(400,parseInt(e.target.value,10)||50));renderCanvas();save();});
+  $("btn-zoom-in").addEventListener("click",()=>{S.zoom=Math.min(2.5,S.zoom+0.15);renderCanvas();});
+  $("btn-zoom-out").addEventListener("click",()=>{S.zoom=Math.max(0.4,S.zoom-0.15);renderCanvas();});
+  $("btn-del").addEventListener("click",delSelected);
+  const themeBtn=$("themeBtn");
+  const setTheme=function(light){
+    if(light)document.body.classList.add("light");else document.body.classList.remove("light");
+    themeBtn.textContent=light?"Тёмная тема":"Светлая тема";
+    try{localStorage.setItem("circuitTheme",light?"light":"dark");}catch(e){}
+  };
+  themeBtn.addEventListener("click",()=>setTheme(!document.body.classList.contains("light")));
+  try{setTheme(localStorage.getItem("circuitTheme")==="light");}catch(e){}
+  $("btn-clear").addEventListener("click",()=>{
+    if(!confirm("Очистить всю схему?"))return;
+    S.elements=[];S.wires=[];S.selected=null;S.results=null;S.error=null;
+    renderResults();fullRender();save();
+  });
+
+  for(const tab of document.querySelectorAll("nav button")){
+    tab.addEventListener("click",()=>{
+      for(const b of document.querySelectorAll("nav button"))b.classList.remove("active");
+      for(const sec of document.querySelectorAll(".tab"))sec.classList.remove("active");
+      tab.classList.add("active");
+      $("tab-"+tab.dataset.tab).classList.add("active");
+    });
+  }
+
+  $("props").addEventListener("input",e=>{
+    const t=e.target;const prop=t.getAttribute("data-prop");if(!prop)return;
+    const el=getEl(String(S.selected).slice(1));if(!el)return;
+    if(prop==="label"){renameElement(el,t.value);renderDataFields();}
+    else if(prop==="name")el.name=t.value;
+    else if(prop==="R"||prop==="E"||prop==="R0"){const v=num(t.value);if(v!==null)el[prop]=v;}
+    invalidate();renderCanvas();save();
+  });
+  $("props").addEventListener("click",e=>{
+    const t=e.target;
+    if(t.getAttribute("data-dir")!==null&&t.getAttribute("data-dir")!==undefined){
+      const el=getEl(String(S.selected).slice(1));
+      if(el){
+        const nd=t.getAttribute("data-dir");
+        if(el.dir!==nd&&el.type==="source"){
+          const k0=el.id+":0",k1=el.id+":1";
+          for(const w of S.wires){
+            const np1=(w.p1===k0)?k1:((w.p1===k1)?k0:w.p1);
+            const np2=(w.p2===k0)?k1:((w.p2===k1)?k0:w.p2);
+            w.p1=np1;w.p2=np2;
+          }
+        }
+        el.dir=nd;invalidate();renderProps();renderCanvas();save();
+      }
+      return;
+    }
+    if(t.getAttribute("data-angle")!==null&&t.getAttribute("data-angle")!==undefined){
+      const el=getEl(String(S.selected).slice(1));
+      if(el){el.angle=Number(t.getAttribute("data-angle"));invalidate();renderProps();renderCanvas();save();}
+      return;
+    }
+    if(t.getAttribute("data-wiremode")){
+      const w=S.wires.find(x=>x.id===Number(String(S.selected).slice(1)));
+      if(w){w.direct=t.getAttribute("data-wiremode")==="direct";w.vias=[];invalidate();renderProps();renderCanvas();save();}
+      return;
+    }
+    if(t.id==="prop-del"){delSelected();return;}
+    if(t.id==="prop-close"){S.selected=null;renderProps();renderCanvas();return;}
+  });
+
+  $("dataFields").addEventListener("input",e=>{
+    const t=e.target;const id=Number(t.getAttribute("data-elid"));const prop=t.getAttribute("data-dprop");
+    if(!id||!prop)return;
+    const el=getEl(id);if(!el)return;
+    if(prop==="label"){
+      renameElement(el,t.value);
+      syncDataLabels();renderProps();
+    }else{
+      const v=num(t.value);if(v!==null)el[prop]=v;
+    }
+    invalidate();renderCanvas();save();
+  });
+  let dataCollapsed=false;
+  const dataToggle=$("dataToggle");
+  if(dataToggle)dataToggle.addEventListener("click",()=>{
+    dataCollapsed=!dataCollapsed;
+    const b=$("dataBody");
+    if(b)b.style.display=dataCollapsed?"none":"";
+    dataToggle.textContent=dataCollapsed?"▸ Развернуть параметры элементов":"▾ Свернуть параметры элементов";
+  });
+  $("in-I").addEventListener("input",e=>{S.givenI=e.target.value;if(S.results)recalc();save();});
+  $("in-step").addEventListener("change",e=>{S.precision=parseFloat(e.target.value)||0.01;if(S.results)renderResults();save();});
+  const bindM=(id,key)=>{const el=$(id);if(el)el.addEventListener("change",()=>{S.methods[key]=el.checked;save();if(S.results)recalc();});};
+  bindM("chk-balance","balance");bindM("chk-mun","mun");bindM("chk-mn","mn");bindM("chk-muku","muku");
+  $("btn-calc").addEventListener("click",recalc);
+  $("btn-calc-reset").addEventListener("click",()=>{S.results=null;S.error=null;renderResults();renderCanvas();});
+
+  document.addEventListener("keydown",e=>{
+    const tag=(e.target.tagName||"").toLowerCase();
+    if(tag==="input"||tag==="select"||tag==="textarea")return;
+    if(e.key==="Delete"||e.key==="Backspace"){e.preventDefault();delSelected();}
+    if(e.key==="Escape"){S.pending=null;S.selected=null;S.tool="select";renderToolbar();renderProps();renderCanvas();}
+  });
+
+  if(!load())demo();
+  if(window.innerWidth<760)S.zoom=0.5;
+  S.tool="select";
+  renderResults();
+  fullRender();
+}
+window.addEventListener("DOMContentLoaded",init);
+</script>
+</body>
+</html>
